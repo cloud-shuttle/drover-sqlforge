@@ -1,0 +1,8 @@
+metrics:
+  - name: daily_active_users
+    expression: COUNT(DISTINCT user_id)
+    model: daily_metrics
+    dimensions: [metric_date, country]
+  - name: revenue_per_user
+    expression: SUM(revenue) / NULLIF(COUNT(DISTINCT user_id), 0)
+    model: ab_test_results

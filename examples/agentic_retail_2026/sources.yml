@@ -1,0 +1,10 @@
+sources:
+  - name: raw_events
+    connection: clickhouse
+    tables:
+      - name: page_views
+      - name: user_actions
+  - name: raw_users
+    connection: clickhouse
+  - name: experiments
+    connection: clickhouse

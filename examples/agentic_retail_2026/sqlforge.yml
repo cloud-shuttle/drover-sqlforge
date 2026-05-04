@@ -1,0 +1,15 @@
+name: agentic_retail_2026
+version: 1.0.0
+default_environment: prod
+
+clickhouse:
+  connection: ${CLICKHOUSE_URL}
+
+ai:
+  provider: ollama
+  model: llama3.2
+  endpoint: http://localhost:11434
+
+virtual:
+  default_type: virtual
+  clickhouse_clone_engine: MergeTree
