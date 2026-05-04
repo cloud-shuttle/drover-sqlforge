@@ -1,7 +1,10 @@
-.PHONY: build wasm cli clean test
+.PHONY: build wasm cli clean test ui
 
-build:
+build: ui
 	go build -o sqlforge ./cmd/sqlforge
+
+ui:
+	cd ui && npm install && npm run build
 
 wasm:
 	# Placeholder for future Rust -> WASM build step

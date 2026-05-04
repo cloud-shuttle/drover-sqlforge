@@ -32,10 +32,10 @@ func NewClickHouseRunner(dsn string) (*ClickHouseRunner, error) {
 
 func (r *ClickHouseRunner) Exec(ctx context.Context, query string) error {
 	if r.stub {
-		fmt.Printf("[ClickHouse Runner] Executing: %s\n", query)
+		// fmt.Printf("[ClickHouse Runner] Executing: %s\n", query)
 		return nil
 	}
-	fmt.Printf("[ClickHouse Live] Executing: %s\n", query)
+	// fmt.Printf("[ClickHouse Live] Executing: %s\n", query)
 	_, err := r.db.ExecContext(ctx, query)
 	return err
 }

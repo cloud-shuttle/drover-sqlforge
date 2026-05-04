@@ -15,7 +15,7 @@ func NewDuckDBRunner(dsn string) (*DuckDBRunner, error) {
 }
 
 func (r *DuckDBRunner) Exec(ctx context.Context, query string) error {
-	fmt.Printf("[DuckDB Runner] Executing: %s\n", query)
+	// fmt.Printf("[DuckDB Runner] Executing: %s\n", query)
 	return nil
 }
 

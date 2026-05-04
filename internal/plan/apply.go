@@ -12,8 +12,24 @@ import (
 	"github.com/drover-org/drover-sqlforge/internal/virtual"
 )
 
-func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, vMgr *virtual.Manager) error {
-	fmt.Printf("Applying plan to environment: %s\n", p.Environment.Name)
+type EventType string
+
+const (
+	EventStart   EventType = "START"
+	EventSuccess EventType = "SUCCESS"
+	EventError   EventType = "ERROR"
+)
+
+type ApplyEvent struct {
+	ModelName string
+	Type      EventType
+	Error     error
+}
+
+func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, vMgr *virtual.Manager, eventChan chan<- ApplyEvent) error {
+	if eventChan == nil {
+		fmt.Printf("Applying plan to environment: %s\n", p.Environment.Name)
+	}
 
 	// Ensure the database/schema exists
 	if err := vMgr.CreateVirtualEnv(ctx, p.Environment.Name, p.Environment.BaseEnv); err != nil {
@@ -34,7 +50,11 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 	}
 
 	applyModel := func(a *model.Asset, i, total int) error {
-		fmt.Printf("[%d/%d] Applying changes to %s...\n", i, total, a.Name)
+		if eventChan != nil {
+			eventChan <- ApplyEvent{ModelName: a.Name, Type: EventStart}
+		} else {
+			fmt.Printf("[%d/%d] Applying changes to %s...\n", i, total, a.Name)
+		}
 		
 		mat := a.Config["materialized"]
 		if mat == "" {
@@ -64,6 +84,9 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 
 		// Execute the DDL against the live runner (or stub)
 		if err := vMgr.Exec(ctx, ddl); err != nil {
+			if eventChan != nil {
+				eventChan <- ApplyEvent{ModelName: a.Name, Type: EventError, Error: err}
+			}
 			return fmt.Errorf("failed to execute model %s: %w", a.Name, err)
 		}
 
@@ -75,7 +98,19 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			MaterializedAs: mat,
 			Environment:    p.Environment.Name,
 		}
-		return stateMgr.Store.SaveModelState(modelState)
+		
+		err := stateMgr.Store.SaveModelState(modelState)
+		if err != nil {
+			if eventChan != nil {
+				eventChan <- ApplyEvent{ModelName: a.Name, Type: EventError, Error: err}
+			}
+			return err
+		}
+
+		if eventChan != nil {
+			eventChan <- ApplyEvent{ModelName: a.Name, Type: EventSuccess}
+		}
+		return nil
 	}
 
 	total := len(p.ChangedModels) + len(p.Impacted)
@@ -92,6 +127,8 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 		}
 	}
 
-	fmt.Println("Apply completed successfully.")
+	if eventChan == nil {
+		fmt.Println("Apply completed successfully.")
+	}
 	return nil
 }

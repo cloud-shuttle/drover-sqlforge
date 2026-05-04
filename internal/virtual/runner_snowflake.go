@@ -14,7 +14,7 @@ func NewSnowflakeRunner(dsn string) (*SnowflakeRunner, error) {
 }
 
 func (r *SnowflakeRunner) Exec(ctx context.Context, query string) error {
-	fmt.Printf("[Snowflake Runner] Executing: %s\n", query)
+	// fmt.Printf("[Snowflake Runner] Executing: %s\n", query)
 	return nil
 }
 

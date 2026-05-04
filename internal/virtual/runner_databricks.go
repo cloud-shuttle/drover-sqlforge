@@ -14,7 +14,7 @@ func NewDatabricksRunner(dsn string) (*DatabricksRunner, error) {
 }
 
 func (r *DatabricksRunner) Exec(ctx context.Context, query string) error {
-	fmt.Printf("[Databricks Runner] Executing: %s\n", query)
+	// fmt.Printf("[Databricks Runner] Executing: %s\n", query)
 	return nil
 }
 

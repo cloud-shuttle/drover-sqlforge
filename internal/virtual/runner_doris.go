@@ -14,7 +14,7 @@ func NewDorisRunner(dsn string) (*DorisRunner, error) {
 }
 
 func (r *DorisRunner) Exec(ctx context.Context, query string) error {
-	fmt.Printf("[Doris Runner] Executing: %s\n", query)
+	// fmt.Printf("[Doris Runner] Executing: %s\n", query)
 	return nil
 }
 

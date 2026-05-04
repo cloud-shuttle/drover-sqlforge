@@ -14,7 +14,7 @@ func NewVeloDBRunner(dsn string) (*VeloDBRunner, error) {
 }
 
 func (r *VeloDBRunner) Exec(ctx context.Context, query string) error {
-	fmt.Printf("[VeloDB Runner] Executing: %s\n", query)
+	// fmt.Printf("[VeloDB Runner] Executing: %s\n", query)
 	return nil
 }
 

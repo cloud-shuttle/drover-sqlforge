@@ -14,7 +14,7 @@ func NewPostgresRunner(dsn string) (*PostgresRunner, error) {
 }
 
 func (r *PostgresRunner) Exec(ctx context.Context, query string) error {
-	fmt.Printf("[Postgres Runner] Executing: %s\n", query)
+	// fmt.Printf("[Postgres Runner] Executing: %s\n", query)
 	return nil
 }
 
