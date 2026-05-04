@@ -52,9 +52,14 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 
 		var ddl string
 		if mat == "table" || mat == "incremental" {
-			ddl = fmt.Sprintf("CREATE OR REPLACE TABLE %s.%s ENGINE = MergeTree ORDER BY tuple() AS\n%s", schema, a.Name, transpiledSQL)
+			ddl = vMgr.Runner().CreateTableDDL(schema, a.Name, transpiledSQL)
+		} else if mat == "materialized_view" {
+			ddl = vMgr.Runner().CreateMaterializedViewDDL(schema, a.Name, transpiledSQL)
+		} else if mat == "kafka" || mat == "nats" || mat == "streaming" {
+			a.Config["_materialization_type"] = mat
+			ddl = vMgr.Runner().CreateStreamingTableDDL(schema, a.Name, a.Config)
 		} else {
-			ddl = fmt.Sprintf("CREATE OR REPLACE VIEW %s.%s AS\n%s", schema, a.Name, transpiledSQL)
+			ddl = vMgr.Runner().CreateViewDDL(schema, a.Name, transpiledSQL)
 		}
 
 		// Execute the DDL against the live runner (or stub)

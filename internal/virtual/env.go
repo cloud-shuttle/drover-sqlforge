@@ -2,13 +2,18 @@ package virtual
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/drover-org/drover-sqlforge/internal/state"
 )
 
 type Runner interface {
 	Exec(ctx context.Context, sql string) error
+	CreateSchemaDDL(schema string) string
+	CreateTableDDL(schema, table, selectSQL string) string
+	CreateViewDDL(schema, table, selectSQL string) string
+	CreateMaterializedViewDDL(schema, table, selectSQL string) string
+	CreateStreamingTableDDL(schema, table string, config map[string]string) string
+	Name() string
 }
 
 type Manager struct {
@@ -20,13 +25,17 @@ func NewManager(runner Runner, stateMgr *state.Manager) *Manager {
 	return &Manager{runner: runner, state: stateMgr}
 }
 
+func (m *Manager) Runner() Runner {
+	return m.runner
+}
+
 func (m *Manager) CreateVirtualEnv(ctx context.Context, envName, baseEnv string) error {
 	env, err := m.state.GetOrCreateEnv(envName, baseEnv)
 	if err != nil {
 		return err
 	}
 
-	if err := m.runner.Exec(ctx, fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s", env.Schema)); err != nil {
+	if err := m.runner.Exec(ctx, m.runner.CreateSchemaDDL(env.Schema)); err != nil {
 		return err
 	}
 

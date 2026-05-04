@@ -2,8 +2,9 @@ name: agentic_retail_2026
 version: 1.0.0
 default_environment: prod
 
-clickhouse:
-  connection: ${CLICKHOUSE_URL}
+virtual:
+  dialect: duckdb
+  connection: memory
 
 ai:
   provider: ollama

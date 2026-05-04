@@ -16,3 +16,6 @@ clean:
 
 test:
 	go test ./...
+
+e2e: build
+	go test -v ./test/e2e/...
