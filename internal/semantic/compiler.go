@@ -45,6 +45,11 @@ func (c *Compiler) Compile(metric *Metric, requestedDims []string) (string, erro
 		groupStr = "\nGROUP BY " + strings.Join(groups, ", ")
 	}
 
-	query := fmt.Sprintf("SELECT\n    %s\nFROM %s.%s%s;", selectStr, c.EnvironmentSchema, metric.Model, groupStr)
+	schemaPrefix := ""
+	if c.EnvironmentSchema != "" {
+		schemaPrefix = c.EnvironmentSchema + "."
+	}
+
+	query := fmt.Sprintf("SELECT\n    %s\nFROM %s%s%s;", selectStr, schemaPrefix, metric.Model, groupStr)
 	return query, nil
 }

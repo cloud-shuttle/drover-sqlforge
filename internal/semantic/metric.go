@@ -7,10 +7,11 @@ import (
 )
 
 type Metric struct {
-	Name       string   `yaml:"name"`
-	Expression string   `yaml:"expression"`
-	Model      string   `yaml:"model"`
-	Dimensions []string `yaml:"dimensions"`
+	Name        string   `yaml:"name"`
+	Expression  string   `yaml:"expression"`
+	Model       string   `yaml:"model"`
+	Dimensions  []string `yaml:"dimensions"`
+	Materialize bool     `yaml:"materialize"`
 }
 
 type Graph struct {
