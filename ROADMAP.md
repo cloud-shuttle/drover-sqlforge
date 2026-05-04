@@ -12,7 +12,7 @@
 - [x] **Native Semantic Layer**: Metric parsing (`metrics.yml`) and dialect-agnostic ANSI SQL compiler.
 - [x] **Hybrid Materialization**: Dynamic injection of semantic metrics into the execution DAG (`materialize: true`).
 - [x] **Property-Based Testing**: Fuzzer validation for the semantic compiler to prevent SQL injection or panics.
-- [ ] **Multi-Dialect Virtual Runners**: Implement DuckDB, Postgres, and Snowflake drivers for the `Runner` interface to enable localized execution and cloud portability.
+- [ ] **Multi-Dialect Virtual Runners**: Implement drivers for Databricks, DuckDB, Postgres, Snowflake, VeloDB, and Apache Doris to enable universal execution and localized portability.
 - [ ] **Deep Agentic AI Integration**: Advanced query generation and schema validation via lightweight LLMs (expanding on `sqlforge ai explain`).
 - [ ] **Real-Time / Streaming Engines**: Support for mapping Kafka topics to virtual envs and orchestrating ClickHouse Materialized Views.
 
