@@ -2,6 +2,7 @@ package semantic
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -16,11 +17,16 @@ func NewCompiler(schema string) *Compiler {
 func (c *Compiler) Compile(metric *Metric, requestedDims []string) (string, error) {
 	// Validate dimensions
 	validDims := make(map[string]bool)
+	dimRegex := regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+
 	for _, d := range metric.Dimensions {
 		validDims[d] = true
 	}
 
 	for _, req := range requestedDims {
+		if !dimRegex.MatchString(req) {
+			return "", fmt.Errorf("dimension '%s' contains invalid characters", req)
+		}
 		if !validDims[req] {
 			return "", fmt.Errorf("dimension '%s' is not supported by metric '%s'", req, metric.Name)
 		}
