@@ -51,6 +51,10 @@ func (r *DorisRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string,
 	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
+func (r *DorisRunner) QueryCount(ctx context.Context, sql string) (int, error) {
+	return 0, nil
+}
+
 func (r *DorisRunner) Name() string {
 	return "doris"
 }

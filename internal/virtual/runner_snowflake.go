@@ -50,6 +50,10 @@ func (r *SnowflakeRunner) CreateIncrementalMergeDDL(schema, table, selectSQL str
 	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
+func (r *SnowflakeRunner) QueryCount(ctx context.Context, sql string) (int, error) {
+	return 0, nil
+}
+
 func (r *SnowflakeRunner) Name() string {
 	return "snowflake"
 }

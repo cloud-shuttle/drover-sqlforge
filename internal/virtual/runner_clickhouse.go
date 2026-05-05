@@ -108,6 +108,18 @@ func (r *ClickHouseRunner) CreateIncrementalMergeDDL(schema, table, selectSQL st
 	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
+func (r *ClickHouseRunner) QueryCount(ctx context.Context, sql string) (int, error) {
+	if r.stub {
+		return 0, nil
+	}
+	var count int
+	err := r.db.QueryRowContext(ctx, sql).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *ClickHouseRunner) Name() string {
 	return "clickhouse"
 }

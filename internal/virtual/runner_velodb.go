@@ -51,6 +51,10 @@ func (r *VeloDBRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string
 	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
+func (r *VeloDBRunner) QueryCount(ctx context.Context, sql string) (int, error) {
+	return 0, nil
+}
+
 func (r *VeloDBRunner) Name() string {
 	return "velodb"
 }

@@ -53,6 +53,10 @@ func (r *PostgresRunner) CreateIncrementalMergeDDL(schema, table, selectSQL stri
 	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
+func (r *PostgresRunner) QueryCount(ctx context.Context, sql string) (int, error) {
+	return 0, nil
+}
+
 func (r *PostgresRunner) Name() string {
 	return "postgres"
 }

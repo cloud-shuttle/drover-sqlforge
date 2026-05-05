@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/drover-org/drover-sqlforge/internal/graph"
@@ -104,6 +105,13 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			return fmt.Errorf("failed to execute model %s: %w", a.Name, err)
 		}
 
+		if err := RunDataQualityTests(ctx, vMgr.Runner(), a, schema); err != nil {
+			if eventChan != nil {
+				eventChan <- ApplyEvent{ModelName: a.Name, Type: EventError, Error: err}
+			}
+			return err
+		}
+
 		fp, _ := graph.GenerateFingerprint(a.AST, a.Config)
 		modelState := &state.ModelState{
 			ModelName:      a.Name,
@@ -143,6 +151,56 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 
 	if eventChan == nil {
 		fmt.Println("Apply completed successfully.")
+	}
+	return nil
+}
+
+func RunDataQualityTests(ctx context.Context, runner virtual.Runner, a *model.Asset, schema string) error {
+	for k, v := range a.Config {
+		if k == "test_not_null" {
+			cols := strings.Split(v, ",")
+			for _, col := range cols {
+				col = strings.TrimSpace(col)
+				testSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE %s IS NULL", schema, a.Name, col)
+				count, err := runner.QueryCount(ctx, testSQL)
+				if err != nil {
+					return err
+				}
+				if count > 0 {
+					return fmt.Errorf("data quality test failed: %s.%s.%s is not_null but found %d null records", schema, a.Name, col, count)
+				}
+			}
+		} else if k == "test_unique" {
+			cols := strings.Split(v, ",")
+			for _, col := range cols {
+				col = strings.TrimSpace(col)
+				testSQL := fmt.Sprintf("SELECT COUNT(*) FROM (SELECT %s, COUNT(*) as _c FROM %s.%s GROUP BY %s HAVING _c > 1)", col, schema, a.Name, col)
+				count, err := runner.QueryCount(ctx, testSQL)
+				if err != nil {
+					return err
+				}
+				if count > 0 {
+					return fmt.Errorf("data quality test failed: %s.%s.%s is unique but found %d duplicate records", schema, a.Name, col, count)
+				}
+			}
+		} else if strings.HasPrefix(k, "test_accepted_values_") {
+			col := strings.TrimPrefix(k, "test_accepted_values_")
+			vals := strings.Split(v, ",")
+			var quotedVals []string
+			for _, val := range vals {
+				val = strings.TrimSpace(val)
+				quotedVals = append(quotedVals, fmt.Sprintf("'%s'", val))
+			}
+			inClause := strings.Join(quotedVals, ", ")
+			testSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE %s NOT IN (%s)", schema, a.Name, col, inClause)
+			count, err := runner.QueryCount(ctx, testSQL)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				return fmt.Errorf("data quality test failed: %s.%s.%s contains %d records not in accepted values (%s)", schema, a.Name, col, count, inClause)
+			}
+		}
 	}
 	return nil
 }

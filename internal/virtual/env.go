@@ -15,6 +15,7 @@ type Runner interface {
 	CreateStreamingTableDDL(schema, table string, config map[string]string) string
 	TableExists(ctx context.Context, schema, table string) (bool, error)
 	CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string
+	QueryCount(ctx context.Context, sql string) (int, error)
 	Name() string
 }
 

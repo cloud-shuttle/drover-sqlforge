@@ -54,6 +54,10 @@ func (r *DuckDBRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string
 	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
+func (r *DuckDBRunner) QueryCount(ctx context.Context, sql string) (int, error) {
+	return 0, nil
+}
+
 func (r *DuckDBRunner) Name() string {
 	return "duckdb"
 }
