@@ -21,7 +21,7 @@
 - [x] **TUI / Web GUI**: Interactive terminal interface or lightweight local web server to visualize the DAG execution plan.
 - [x] **Data Quality Testing**: Porting standard `test` macros (not_null, unique, accepted_values) into native Go verifications during `apply`.
 - [x] **Incremental Materializations**: Robust cross-dialect support for complex incremental models (MERGE, UPSERT, Insert/Overwrite) utilizing AST diffing.
-- [ ] **CI/CD Integrations**: Pre-built GitHub Actions for spinning up isolated, zero-copy preview environments on every PR.
+- [x] **CI/CD Integrations**: Pre-built GitHub Actions for spinning up isolated, zero-copy preview environments on every PR.
 
 ## ✅ Phase 4: Agentic Tier / MCP Server (Complete)
 - [x] **MCP Server**: Embed an HTTP server to expose SQLForge as a Model Context Protocol service for autonomous agents.

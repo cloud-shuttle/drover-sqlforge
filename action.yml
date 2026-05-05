@@ -1,0 +1,82 @@
+name: 'SQLForge PR Preview'
+description: 'Spins up isolated, zero-copy preview environments on every PR using SQLForge'
+inputs:
+  environment:
+    description: 'Name of the preview environment (e.g., pr_123)'
+    required: true
+  base_environment:
+    description: 'Name of the base environment to clone from (e.g., prod)'
+    required: false
+    default: 'prod'
+  config_dir:
+    description: 'Directory containing sqlforge.yml and models/'
+    required: false
+    default: '.'
+  github_token:
+    description: 'GitHub token for commenting the plan on the Pull Request'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Install SQLForge
+      shell: bash
+      run: |
+        echo "Installing SQLForge CLI..."
+        go install github.com/drover-org/drover-sqlforge/cmd/sqlforge@latest
+
+    - name: SQLForge Plan
+      id: sqlforge_plan
+      shell: bash
+      working-directory: ${{ inputs.config_dir }}
+      run: |
+        echo "Running SQLForge Plan for environment: ${{ inputs.environment }}"
+        
+        # Run plan and capture output, preserving exit code
+        PLAN_OUTPUT=$(sqlforge plan ${{ inputs.environment }} 2>&1)
+        EXIT_CODE=$?
+        
+        # Use multiline string syntax for GITHUB_OUTPUT
+        EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+        echo "plan_output<<$EOF" >> $GITHUB_OUTPUT
+        echo "$PLAN_OUTPUT" >> $GITHUB_OUTPUT
+        echo "$EOF" >> $GITHUB_OUTPUT
+        
+        exit $EXIT_CODE
+
+    - name: Comment Plan on PR
+      if: ${{ github.event_name == 'pull_request' && inputs.github_token != '' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github_token }}
+        script: |
+          const output = `#### SQLForge Plan 🔨
+          
+          <details><summary>Show Plan</summary>
+          
+          \`\`\`text
+          ${{ steps.sqlforge_plan.outputs.plan_output }}
+          \`\`\`
+          
+          </details>`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
+
+    - name: SQLForge Apply
+      shell: bash
+      working-directory: ${{ inputs.config_dir }}
+      run: |
+        echo "Applying SQLForge Plan for environment: ${{ inputs.environment }}"
+        # Set CI to disable TUI in case it interferes
+        export CI=true
+        sqlforge apply ${{ inputs.environment }}

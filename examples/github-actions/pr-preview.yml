@@ -1,0 +1,34 @@
+name: SQLForge PR Preview Environments
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  preview-env:
+    runs-on: ubuntu-latest
+    
+    # Needs permissions to comment on PRs
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Optional: Depending on your data warehouse, you might need to set up credentials
+      # - name: Setup Cloud Credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with: ...
+      
+      # This step uses the pre-built composite action from the root of the repository
+      # When using this in a real project, replace `./` with `drover-org/drover-sqlforge@main`
+      - name: Deploy Zero-Copy Preview
+        uses: ./
+        with:
+          # Automatically names the environment pr_<pull_request_number>
+          environment: pr_${{ github.event.pull_request.number }}
+          base_environment: prod
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # config_dir: . (defaults to root if not specified)
