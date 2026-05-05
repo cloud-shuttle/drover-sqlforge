@@ -36,7 +36,19 @@ func (r *DorisRunner) CreateMaterializedViewDDL(schema, table, selectSQL string)
 }
 
 func (r *DorisRunner) CreateStreamingTableDDL(schema, table string, config map[string]string) string {
-	return fmt.Sprintf("-- Doris requires Routine Load for Kafka streaming for %s.%s", schema, table)
+	return fmt.Sprintf("-- Doris does not support native streaming engines for %s.%s", schema, table)
+}
+
+func (r *DorisRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	return true, nil
+}
+
+func (r *DorisRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
+	uniqueKey := config["unique_key"]
+	if uniqueKey != "" {
+		return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s)\nON DUPLICATE KEY UPDATE *;", schema, table, selectSQL)
+	}
+	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
 func (r *DorisRunner) Name() string {

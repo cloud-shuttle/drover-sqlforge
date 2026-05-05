@@ -13,6 +13,8 @@ type Runner interface {
 	CreateViewDDL(schema, table, selectSQL string) string
 	CreateMaterializedViewDDL(schema, table, selectSQL string) string
 	CreateStreamingTableDDL(schema, table string, config map[string]string) string
+	TableExists(ctx context.Context, schema, table string) (bool, error)
+	CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string
 	Name() string
 }
 

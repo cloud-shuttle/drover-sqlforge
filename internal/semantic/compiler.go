@@ -45,7 +45,7 @@ func (c *Compiler) Compile(metric *Metric, requestedDims []string) (string, erro
 	selects = append(selects, fmt.Sprintf("%s AS %s", metric.Expression, metric.Name))
 
 	selectStr := strings.Join(selects, ",\n    ")
-	
+
 	groupStr := ""
 	if len(groups) > 0 {
 		groupStr = "\nGROUP BY " + strings.Join(groups, ", ")

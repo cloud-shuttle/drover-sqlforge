@@ -35,7 +35,19 @@ func (r *SnowflakeRunner) CreateMaterializedViewDDL(schema, table, selectSQL str
 }
 
 func (r *SnowflakeRunner) CreateStreamingTableDDL(schema, table string, config map[string]string) string {
-	return fmt.Sprintf("-- Snowflake does not support direct streaming tables for %s.%s", schema, table)
+	return fmt.Sprintf("-- Snowflake does not support native streaming engines for %s.%s", schema, table)
+}
+
+func (r *SnowflakeRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	return true, nil
+}
+
+func (r *SnowflakeRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
+	uniqueKey := config["unique_key"]
+	if uniqueKey != "" {
+		return fmt.Sprintf("MERGE INTO %s.%s t\nUSING (%s) s\nON t.%s = s.%s\nWHEN MATCHED THEN UPDATE SET *\nWHEN NOT MATCHED THEN INSERT *;", schema, table, selectSQL, uniqueKey, uniqueKey)
+	}
+	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
 func (r *SnowflakeRunner) Name() string {

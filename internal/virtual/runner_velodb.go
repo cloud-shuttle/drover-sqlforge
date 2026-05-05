@@ -39,6 +39,18 @@ func (r *VeloDBRunner) CreateStreamingTableDDL(schema, table string, config map[
 	return fmt.Sprintf("-- VeloDB does not support native streaming engines for %s.%s", schema, table)
 }
 
+func (r *VeloDBRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	return true, nil
+}
+
+func (r *VeloDBRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
+	uniqueKey := config["unique_key"]
+	if uniqueKey != "" {
+		return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s)\nON CONFLICT (%s) DO UPDATE SET *;", schema, table, selectSQL, uniqueKey)
+	}
+	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
+}
+
 func (r *VeloDBRunner) Name() string {
 	return "velodb"
 }

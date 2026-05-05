@@ -16,7 +16,7 @@ func FuzzParseConfigLine(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, line string) {
 		key, value, ok := ParseConfigLine(line)
-		
+
 		if !ok {
 			// If not OK, the strings should be empty
 			if key != "" || value != "" {
@@ -30,7 +30,7 @@ func FuzzParseConfigLine(f *testing.F) {
 		if !strings.HasPrefix(trimmed, "-- @") {
 			t.Errorf("Reported ok=true but didn't start with -- @: %q", line)
 		}
-		
+
 		// Value should not contain trailing inline comments if properly removed
 		if strings.Contains(value, "--") {
 			t.Errorf("Value still contains comment marker: %q", value)

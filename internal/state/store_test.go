@@ -8,7 +8,7 @@ import (
 
 func TestStateStore(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	store, err := NewStore(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)

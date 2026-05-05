@@ -46,7 +46,7 @@ func parseFile(path string, p *parser.Parser) (*Asset, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		if key, value, ok := ParseConfigLine(line); ok {
 			config[key] = value
 		}

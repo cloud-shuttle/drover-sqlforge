@@ -31,6 +31,12 @@ func (m *MockRunner) CreateMaterializedViewDDL(schema, table, selectSQL string) 
 func (m *MockRunner) CreateStreamingTableDDL(schema, table string, config map[string]string) string {
 	return "stream " + table + " " + config["_materialization_type"]
 }
+func (m *MockRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	return m.LastDDL != "", nil // Return true if it was run once in the test
+}
+func (m *MockRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
+	return "merge " + table
+}
 func (m *MockRunner) Name() string { return "mock" }
 
 func TestApplyPlanRouting(t *testing.T) {

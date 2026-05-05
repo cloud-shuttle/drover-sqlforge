@@ -1,5 +1,6 @@
 -- @materialized: incremental
 -- @incremental_strategy: auto
+-- @unique_key: event_id
 -- @grain: event_id
 
 SELECT

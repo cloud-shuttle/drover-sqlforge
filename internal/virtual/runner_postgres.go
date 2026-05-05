@@ -41,6 +41,18 @@ func (r *PostgresRunner) CreateStreamingTableDDL(schema, table string, config ma
 	return fmt.Sprintf("-- Postgres does not support native streaming engines for %s.%s", schema, table)
 }
 
+func (r *PostgresRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	return true, nil
+}
+
+func (r *PostgresRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
+	uniqueKey := config["unique_key"]
+	if uniqueKey != "" {
+		return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s)\nON CONFLICT (%s) DO UPDATE SET *;", schema, table, selectSQL, uniqueKey)
+	}
+	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
+}
+
 func (r *PostgresRunner) Name() string {
 	return "postgres"
 }

@@ -36,7 +36,19 @@ func (r *DatabricksRunner) CreateMaterializedViewDDL(schema, table, selectSQL st
 }
 
 func (r *DatabricksRunner) CreateStreamingTableDDL(schema, table string, config map[string]string) string {
-	return fmt.Sprintf("-- Databricks streaming tables handled via DLT for %s.%s", schema, table)
+	return fmt.Sprintf("-- Databricks requires Delta Live Tables for native streaming %s.%s", schema, table)
+}
+
+func (r *DatabricksRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	return true, nil
+}
+
+func (r *DatabricksRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
+	uniqueKey := config["unique_key"]
+	if uniqueKey != "" {
+		return fmt.Sprintf("MERGE INTO %s.%s t\nUSING (%s) s\nON t.%s = s.%s\nWHEN MATCHED THEN UPDATE SET *\nWHEN NOT MATCHED THEN INSERT *;", schema, table, selectSQL, uniqueKey, uniqueKey)
+	}
+	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
 }
 
 func (r *DatabricksRunner) Name() string {

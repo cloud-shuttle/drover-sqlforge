@@ -10,7 +10,7 @@ func TestClickHouseStreamingDDL_Kafka(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create clickhouse runner: %v", err)
 	}
-	
+
 	config := map[string]string{
 		"_materialization_type": "kafka",
 		"kafka_broker_list":     "localhost:9092",
@@ -37,7 +37,7 @@ func TestClickHouseStreamingDDL_Nats(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create clickhouse runner: %v", err)
 	}
-	
+
 	config := map[string]string{
 		"_materialization_type": "nats",
 		"nats_url":              "nats://localhost:4222",
@@ -60,7 +60,7 @@ func TestClickHouseStreamingDDL_Nats(t *testing.T) {
 
 func TestOtherRunnersFallback(t *testing.T) {
 	dialects := []string{"duckdb", "postgres", "snowflake", "databricks", "doris", "velodb"}
-	
+
 	for _, dialect := range dialects {
 		runner, err := NewRunner(dialect, "")
 		if err != nil {
@@ -96,7 +96,7 @@ func FuzzClickHouseStreamingDDL(f *testing.F) {
 			"nats_format":           p4,
 		}
 
-		// The goal of this fuzz test is simply to verify that DDL generation 
+		// The goal of this fuzz test is simply to verify that DDL generation
 		// never panics under random payload strings
 		defer func() {
 			if r := recover(); r != nil {

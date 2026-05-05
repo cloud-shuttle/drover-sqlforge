@@ -1,9 +1,9 @@
 package semantic
 
 import (
+	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
-	"gopkg.in/yaml.v3"
 )
 
 type Metric struct {
@@ -26,18 +26,18 @@ func LoadMetrics(projectDir string) (*Graph, error) {
 	}
 
 	graph := &Graph{}
-	
+
 	for _, match := range matches {
 		data, err := os.ReadFile(match)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		var fileGraph Graph
 		if err := yaml.Unmarshal(data, &fileGraph); err != nil {
 			return nil, err
 		}
-		
+
 		graph.Metrics = append(graph.Metrics, fileGraph.Metrics...)
 	}
 

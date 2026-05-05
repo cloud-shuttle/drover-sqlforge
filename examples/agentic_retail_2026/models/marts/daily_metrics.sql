@@ -1,5 +1,6 @@
 -- @materialized: incremental
 -- @incremental_strategy: auto
+-- @unique_key: metric_date
 -- @grain: metric_date
 
 SELECT 

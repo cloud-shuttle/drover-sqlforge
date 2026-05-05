@@ -1,8 +1,8 @@
 package graph
 
 import (
-	"testing"
 	"github.com/drover-org/drover-sqlforge/internal/model"
+	"testing"
 )
 
 // FuzzDAGBuild checks that no sequence of dependencies causes a panic
@@ -14,7 +14,7 @@ func FuzzDAGBuild(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		dag := NewDAG()
-		
+
 		// If data length is odd, drop the last byte to get pairs of edges
 		length := len(data)
 		if length%2 != 0 {
@@ -27,14 +27,14 @@ func FuzzDAGBuild(f *testing.F) {
 		for i := 0; i < length; i += 2 {
 			from := data[i]
 			to := data[i+1]
-			
+
 			if !created[from] {
 				assets = append(assets, &model.Asset{
 					Name: string([]byte{from}),
 				})
 				created[from] = true
 			}
-			
+
 			// Find the asset and add dependency
 			for _, a := range assets {
 				if a.Name == string([]byte{from}) {
@@ -42,7 +42,7 @@ func FuzzDAGBuild(f *testing.F) {
 					break
 				}
 			}
-			
+
 			if !created[to] {
 				assets = append(assets, &model.Asset{
 					Name: string([]byte{to}),
@@ -53,7 +53,7 @@ func FuzzDAGBuild(f *testing.F) {
 
 		// Ensure Build doesn't panic. Cycle detection might return an error, which is fine.
 		_ = dag.Build(assets)
-		
+
 		// Ensure TopologicalSort doesn't panic.
 		_, _ = dag.TopologicalSort()
 	})

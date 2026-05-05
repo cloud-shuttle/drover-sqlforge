@@ -90,6 +90,24 @@ SETTINGS kafka_broker_list = '%s',
          kafka_format = '%s'`, schema, table, kafkaBroker, kafkaTopic, kafkaGroup, kafkaFormat)
 }
 
+func (r *ClickHouseRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	if r.stub {
+		return true, nil
+	}
+	var exists int
+	err := r.db.QueryRowContext(ctx, "SELECT count() FROM system.tables WHERE database = $1 AND name = $2", schema, table).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists > 0, nil
+}
+
+func (r *ClickHouseRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
+	// ClickHouse usually does append via INSERT INTO
+	// For upsert, user needs to have specified ENGINE = ReplacingMergeTree during initial create
+	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
+}
+
 func (r *ClickHouseRunner) Name() string {
 	return "clickhouse"
 }

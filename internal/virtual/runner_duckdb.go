@@ -41,6 +41,19 @@ func (r *DuckDBRunner) CreateStreamingTableDDL(schema, table string, config map[
 	return fmt.Sprintf("-- DuckDB does not support native streaming engines for %s.%s", schema, table)
 }
 
+func (r *DuckDBRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	// Stub always returns true to simulate incremental merge DDL generation
+	return true, nil
+}
+
+func (r *DuckDBRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
+	uniqueKey := config["unique_key"]
+	if uniqueKey != "" {
+		return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s)\nON CONFLICT (%s) DO UPDATE SET *;", schema, table, selectSQL, uniqueKey)
+	}
+	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
+}
+
 func (r *DuckDBRunner) Name() string {
 	return "duckdb"
 }

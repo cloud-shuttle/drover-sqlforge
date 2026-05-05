@@ -55,7 +55,7 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 		} else {
 			fmt.Printf("[%d/%d] Applying changes to %s...\n", i, total, a.Name)
 		}
-		
+
 		mat := a.Config["materialized"]
 		if mat == "" {
 			mat = "view"
@@ -71,7 +71,21 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 		}
 
 		var ddl string
-		if mat == "table" || mat == "incremental" {
+		if mat == "incremental" {
+			exists, err := vMgr.Runner().TableExists(ctx, schema, a.Name)
+			if err != nil {
+				if eventChan != nil {
+					eventChan <- ApplyEvent{ModelName: a.Name, Type: EventError, Error: err}
+				}
+				return fmt.Errorf("failed to check table existence %s: %w", a.Name, err)
+			}
+
+			if !exists {
+				ddl = vMgr.Runner().CreateTableDDL(schema, a.Name, transpiledSQL)
+			} else {
+				ddl = vMgr.Runner().CreateIncrementalMergeDDL(schema, a.Name, transpiledSQL, a.Config)
+			}
+		} else if mat == "table" {
 			ddl = vMgr.Runner().CreateTableDDL(schema, a.Name, transpiledSQL)
 		} else if mat == "materialized_view" {
 			ddl = vMgr.Runner().CreateMaterializedViewDDL(schema, a.Name, transpiledSQL)
@@ -98,7 +112,7 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			MaterializedAs: mat,
 			Environment:    p.Environment.Name,
 		}
-		
+
 		err := stateMgr.Store.SaveModelState(modelState)
 		if err != nil {
 			if eventChan != nil {
