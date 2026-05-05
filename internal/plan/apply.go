@@ -3,12 +3,12 @@ package plan
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/drover-org/drover-sqlforge/internal/graph"
 	"github.com/drover-org/drover-sqlforge/internal/model"
+	"github.com/drover-org/drover-sqlforge/internal/parser"
 	"github.com/drover-org/drover-sqlforge/internal/state"
 	"github.com/drover-org/drover-sqlforge/internal/virtual"
 )
@@ -62,16 +62,15 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			mat = "view"
 		}
 
-		// TODO(Known Limitation): The WASM polyglot parser currently extracts dependencies structurally, 
-		// but full AST-based string reconstruction is not yet finalized in the rust module. 
-		// We use a regex replacement as a reliable fallback to prefix tables with the environment schema.
-		transpiledSQL := a.SQL
+		// Transpile step: Replace table dependencies with their schema-prefixed versions.
+		// We use a robust token-aware replacer to avoid accidental regex matches inside strings or aliases.
+		depMap := make(map[string]string)
 		for _, dep := range a.Dependencies {
 			if allModels[dep] {
-				re := regexp.MustCompile(`(?i)\b` + dep + `\b`)
-				transpiledSQL = re.ReplaceAllString(transpiledSQL, schema+"."+dep)
+				depMap[dep] = schema + "." + dep
 			}
 		}
+		transpiledSQL := parser.ReplaceDependencies(a.SQL, depMap)
 
 		var ddl string
 		if mat == "incremental" {
