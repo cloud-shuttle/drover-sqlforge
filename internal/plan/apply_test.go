@@ -37,6 +37,9 @@ func (m *MockRunner) TableExists(ctx context.Context, schema, table string) (boo
 func (m *MockRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
 	return "merge " + table
 }
+func (m *MockRunner) QueryCount(ctx context.Context, sql string) (int, error) {
+	return 0, nil
+}
 func (m *MockRunner) Name() string { return "mock" }
 
 func TestApplyPlanRouting(t *testing.T) {

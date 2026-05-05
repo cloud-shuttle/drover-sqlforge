@@ -47,4 +47,8 @@ cd examples/agentic_retail_2026
 - **SQLite State**: Locally tracks applied environments and model fingerprints (`.sqlforge/state.db`).
 - **Cobra CLI**: The user-facing command structure.
 
+## Contributing
+
+We welcome contributions! If you want to run the tests, fuzzers, or understand how the WASM polyglot is integrated, please read our [Contributing Guide](CONTRIBUTING.md).
+
 See [ARCHITECTURE.md](ARCHITECTURE.md) and [ROADMAP.md](ROADMAP.md) for more details.

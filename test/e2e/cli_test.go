@@ -94,4 +94,34 @@ func TestE2EPipeline(t *testing.T) {
 	if st.MaterializedAs != "table" {
 		t.Errorf("Expected customer_360 to be materialized as table, got %s", st.MaterializedAs)
 	}
+
+	// 5. Test Semantic Query CLI
+	out, err = runCLI("query", "daily_active_users", "prod", "--dimensions", "metric_date")
+	if err != nil {
+		t.Fatalf("Failed to run semantic query: %v\nOutput: %s", err, out)
+	}
+	if !strings.Contains(out, "GROUP BY metric_date") {
+		t.Errorf("Expected semantic query to output GROUP BY metric_date, got: %s", out)
+	}
+
+	// 6. Test Data Quality Failure
+	// Create a intentionally failing model
+	badModelPath := filepath.Join(exampleDir, "models", "staging", "stg_bad.sql")
+	badModelSQL := `-- @materialized: table
+-- @test_not_null: user_id
+SELECT NULL AS user_id;`
+	if err := os.WriteFile(badModelPath, []byte(badModelSQL), 0644); err != nil {
+		t.Fatalf("Failed to write bad model: %v", err)
+	}
+	defer os.Remove(badModelPath)
+
+	// Run plan & apply to trigger the test failure
+	_, _ = runCLI("plan", "prod")
+	out, err = runCLI("apply", "prod")
+	if err == nil {
+		t.Fatalf("Expected apply to fail due to data quality test on stg_bad, but it succeeded.\nOutput: %s", out)
+	}
+	if !strings.Contains(out, "data quality test failed") {
+		t.Errorf("Expected error to mention data quality test failed, got: %s", out)
+	}
 }

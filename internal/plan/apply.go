@@ -62,7 +62,9 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			mat = "view"
 		}
 
-		// Transpile step (stub): replace known DAG dependencies with schema.table
+		// TODO(Known Limitation): The WASM polyglot parser currently extracts dependencies structurally, 
+		// but full AST-based string reconstruction is not yet finalized in the rust module. 
+		// We use a regex replacement as a reliable fallback to prefix tables with the environment schema.
 		transpiledSQL := a.SQL
 		for _, dep := range a.Dependencies {
 			if allModels[dep] {

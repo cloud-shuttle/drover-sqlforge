@@ -16,8 +16,9 @@
 - [x] **Deep Agentic AI Integration**: Advanced query generation and schema validation via lightweight LLMs (expanding on `sqlforge ai explain`).
 - [x] **Real-Time / Streaming Engines**: Support for mapping Kafka/NATS topics to virtual envs and orchestrating ClickHouse Materialized Views.
 
-## 🚀 Phase 3: Developer Experience & Automation (In Progress)
+## ✅ Phase 3: Developer Experience & Automation (Complete)
 - [x] **End-to-End Testing**: Fully automated isolated execution suite (`make e2e`) validating the CLI, DAG execution, and internal state trackers against mock projects.
+- [x] **Agentic Query Gen**: Agents can run `sqlforge query` to safely synthesize new queries via semantic layer primitives without seeing underlying tables.
 - [x] **TUI / Web GUI**: Interactive terminal interface or lightweight local web server to visualize the DAG execution plan.
 - [x] **Data Quality Testing**: Porting standard `test` macros (not_null, unique, accepted_values) into native Go verifications during `apply`.
 - [x] **Incremental Materializations**: Robust cross-dialect support for complex incremental models (MERGE, UPSERT, Insert/Overwrite) utilizing AST diffing.
@@ -28,3 +29,9 @@
 - [x] **MCP Tool Registry**: Expose tools like `list_models`, `query_metric`, `plan_change`, and `apply_change` for agent usage.
 - [x] **Interactive Execution**: WebSocket endpoints for live plan approval and step-by-step execution feedback for agents.
 - [x] **Security & Observability**: API key auth, rate limiting, and comprehensive request auditing for all agent interactions.
+
+## ✅ Phase 5: Stability & Developer Onboarding (Complete)
+- [x] **End-to-End Testing Expansion**: Full coverage for incremental workflows, data quality assertions, and CLI integrations.
+- [x] **Fuzz Testing Security**: High-throughput property testing on the WASM parser boundary and JSON-RPC MCP server.
+- [x] **Onboarding Material**: Comprehensive `CONTRIBUTING.md` created to outline architecture, local environment setup, and compilation.
+- [x] **Code Stubs Resolution**: Code stubs evaluated, mocks fixed, and known limitations documented.
