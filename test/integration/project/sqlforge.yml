@@ -1,0 +1,9 @@
+name: clickhouse_integration
+version: 1.0.0
+default_environment: prod
+
+virtual:
+  dialect: clickhouse
+  connection: clickhouse://default:@localhost:9000/default
+  default_type: table
+  clickhouse_clone_engine: MergeTree

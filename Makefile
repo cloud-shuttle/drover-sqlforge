@@ -22,3 +22,8 @@ test:
 
 e2e: build
 	go test -v ./test/e2e/...
+
+integration: build
+	docker compose -f test/integration/docker-compose.yml up -d --wait
+	go test -v ./test/integration/...
+	docker compose -f test/integration/docker-compose.yml down
