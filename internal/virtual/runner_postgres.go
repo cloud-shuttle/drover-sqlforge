@@ -60,3 +60,7 @@ func (r *PostgresRunner) QueryCount(ctx context.Context, sql string) (int, error
 func (r *PostgresRunner) Name() string {
 	return "postgres"
 }
+
+func (r *PostgresRunner) QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error) {
+	return nil, nil
+}

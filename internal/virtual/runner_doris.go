@@ -58,3 +58,7 @@ func (r *DorisRunner) QueryCount(ctx context.Context, sql string) (int, error) {
 func (r *DorisRunner) Name() string {
 	return "doris"
 }
+
+func (r *DorisRunner) QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error) {
+	return nil, nil
+}

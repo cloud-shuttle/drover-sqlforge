@@ -123,3 +123,42 @@ func (r *ClickHouseRunner) QueryCount(ctx context.Context, sql string) (int, err
 func (r *ClickHouseRunner) Name() string {
 	return "clickhouse"
 }
+
+func (r *ClickHouseRunner) QueryData(ctx context.Context, query string) ([]map[string]interface{}, error) {
+	if r.stub {
+		return []map[string]interface{}{{"stub": "data"}}, nil
+	}
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []map[string]interface{}
+	for rows.Next() {
+		columns := make([]interface{}, len(cols))
+		columnPointers := make([]interface{}, len(cols))
+		for i := range columns {
+			columnPointers[i] = &columns[i]
+		}
+
+		if err := rows.Scan(columnPointers...); err != nil {
+			return nil, err
+		}
+
+		m := make(map[string]interface{})
+		for i, colName := range cols {
+			val := columnPointers[i].(*interface{})
+			m[colName] = *val
+		}
+		result = append(result, m)
+	}
+
+	return result, nil
+}

@@ -16,6 +16,7 @@ type Runner interface {
 	TableExists(ctx context.Context, schema, table string) (bool, error)
 	CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string
 	QueryCount(ctx context.Context, sql string) (int, error)
+	QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error)
 	Name() string
 }
 

@@ -57,3 +57,7 @@ func (r *SnowflakeRunner) QueryCount(ctx context.Context, sql string) (int, erro
 func (r *SnowflakeRunner) Name() string {
 	return "snowflake"
 }
+
+func (r *SnowflakeRunner) QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error) {
+	return nil, nil
+}

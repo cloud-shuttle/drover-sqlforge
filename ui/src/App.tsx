@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -12,6 +12,7 @@ import type { Node, Edge } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import dagre from 'dagre';
 import CustomNode from './CustomNode';
+import { TableExplorer } from './components/TableExplorer';
 
 const nodeTypes = {
   custom: CustomNode,
@@ -55,6 +56,11 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => 
 function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  const onNodeClick = (_: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id);
+  };
 
   useEffect(() => {
     fetch('http://localhost:8080/api/dag')
@@ -71,31 +77,43 @@ function App() {
   }, []);
 
   return (
-    <div className="w-screen h-screen bg-slate-950 font-sans">
-      {/* Header */}
-      <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none">
-        <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-lg">
-          SQLForge <span className="text-blue-500">Explorer</span>
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">Live Execution DAG Lineage</p>
+    <div className="flex w-screen h-screen bg-slate-950 font-sans overflow-hidden">
+      <div className="flex-1 relative">
+        {/* Header */}
+        <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none">
+          <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-lg">
+            SQLForge <span className="text-blue-500">Explorer</span>
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">Live Execution DAG Lineage</p>
+        </div>
+
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+          fitView
+          className="bg-slate-950"
+          defaultEdgeOptions={{
+            style: { stroke: '#475569', strokeWidth: 2 },
+            animated: true,
+          }}
+        >
+          <Background variant={BackgroundVariant.Dots} gap={24} size={2} color="#334155" />
+          <Controls className="bg-slate-900 border-slate-800 fill-slate-300" />
+        </ReactFlow>
       </div>
 
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        fitView
-        className="bg-slate-950"
-        defaultEdgeOptions={{
-          style: { stroke: '#475569', strokeWidth: 2 },
-          animated: true,
-        }}
-      >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={2} color="#334155" />
-        <Controls className="bg-slate-900 border-slate-800 fill-slate-300" />
-      </ReactFlow>
+      {selectedNodeId && (
+        <div className="h-full border-l border-slate-800 z-20">
+          <TableExplorer 
+            modelName={selectedNodeId} 
+            onClose={() => setSelectedNodeId(null)} 
+          />
+        </div>
+      )}
     </div>
   );
 }

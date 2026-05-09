@@ -58,3 +58,7 @@ func (r *VeloDBRunner) QueryCount(ctx context.Context, sql string) (int, error) 
 func (r *VeloDBRunner) Name() string {
 	return "velodb"
 }
+
+func (r *VeloDBRunner) QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error) {
+	return nil, nil
+}

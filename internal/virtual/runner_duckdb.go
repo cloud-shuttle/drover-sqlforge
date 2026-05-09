@@ -72,3 +72,11 @@ func (r *DuckDBRunner) QueryCount(ctx context.Context, sql string) (int, error) 
 func (r *DuckDBRunner) Name() string {
 	return "duckdb"
 }
+
+func (r *DuckDBRunner) QueryData(ctx context.Context, query string) ([]map[string]interface{}, error) {
+	// DuckDB runner is a stub in this repository to avoid CGO compilation.
+	// We return dummy data for the UI Table Explorer.
+	return []map[string]interface{}{
+		{"stubbed": true, "message": "DuckDB is running in stub mode. Run ClickHouse for real data previews."},
+	}, nil
+}

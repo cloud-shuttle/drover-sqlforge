@@ -58,3 +58,7 @@ func (r *DatabricksRunner) QueryCount(ctx context.Context, sql string) (int, err
 func (r *DatabricksRunner) Name() string {
 	return "databricks"
 }
+
+func (r *DatabricksRunner) QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error) {
+	return nil, nil
+}
