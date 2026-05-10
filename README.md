@@ -1,5 +1,7 @@
 # Drover SQLForge 🚀 (v0.1.0-alpha)
 
+> Part of the [Drover Ecosystem](../DROVER_ECOSYSTEM.md) — Orchestrating Autonomous Agentic Engineering
+
 A modern, fast, and pure Go-native alternative to dbt, powered by **Polyglot WASM** for deep SQL intelligence and zero-copy virtual environments.
 
 ## Core Philosophy
