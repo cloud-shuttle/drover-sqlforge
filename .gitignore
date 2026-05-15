@@ -29,3 +29,12 @@ go.work.sum
 .vscode/
 *.swp
 *~
+
+# Common Binaries
+server
+drover
+drover-*
+*.exe
+*.test
+.DS_Store
+.env
