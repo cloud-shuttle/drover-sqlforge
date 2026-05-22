@@ -2,16 +2,16 @@
 
 > Part of the [Drover Ecosystem](../DROVER_ECOSYSTEM.md) — Orchestrating Autonomous Agentic Engineering
 
-A modern, fast, and pure Go-native alternative to dbt, powered by **Polyglot WASM** for deep SQL intelligence and zero-copy virtual environments.
+A modern, fast, and pure Go-native alternative to dbt, powered by **Polyglot WASM** for deep SQL intelligence, isolated **environments**, and **zero-copy isolation** on supported warehouses.
 
 ## Core Philosophy
 
-`sqlforge` diverges from legacy data modeling tools by prioritizing **compile-time AST analysis** over runtime string templating (like Jinja). 
+`sqlforge` diverges from legacy data modeling tools by prioritizing **compile-time AST analysis** over runtime string templating (like Jinja). See [ADR 0001](docs/adr/0001-no-jinja-policy.md).
 
-1. **Jinja-Free**: Models are written in pure SQL. No `{{ ref() }}` blocks. References are resolved structurally.
-2. **Virtual Environments**: Uses ClickHouse `CLONE` (zero-copy) for instant, isolated staging environments.
-3. **Plan & Apply Workflow**: Terraform-style planning. Uses AST structural hashing (fingerprints) to detect exactly what logical code changed, ignoring formatting.
-4. **Agentic Ready**: Built-in AI hooks (`sqlforge ai explain`) to interpret models and connect to the semantic layer natively.
+1. **Jinja-free**: **Models** are pure SQL. No `{{ ref() }}` blocks. **Structural references** resolve dependencies at parse time.
+2. **Environments**: Named plan/apply targets (`prod`, `peter_dev`) with isolated **warehouse schemas**. Non-prod targets use **zero-copy isolation** (e.g. ClickHouse `CLONE`) where supported.
+3. **Plan & apply**: Terraform-style workflow. **Fingerprints** (AST + model config) detect logical changes, not formatting noise.
+4. **Agent-ready**: Semantic **metrics**, MCP read tools, and CLI **plan**/**apply** for **Drover Code** agents ([ADR 0002](docs/adr/0002-cli-invocation-drover-code-integration.md)).
 
 ## Installation
 
@@ -30,14 +30,20 @@ cd examples/agentic_retail_2026
 # Parse the models and see the DAG
 ../../sqlforge parse
 
-# Create a virtual environment
+# Create an environment (isolated warehouse schema)
 ../../sqlforge env create peter_dev
 
-# See what will change
+# See what will change (execution plan)
 ../../sqlforge plan peter_dev
 
-# Apply changes to your environment
+# Apply changes to that environment
 ../../sqlforge apply peter_dev
+
+# Historized snapshot (SCD Type 2) from snapshots/
+../../sqlforge snapshot prod
+
+# Column-level lineage for a model
+../../sqlforge lineage customer_360
 
 # Use local AI to explain a model
 ../../sqlforge ai explain customer_360
@@ -45,12 +51,18 @@ cd examples/agentic_retail_2026
 
 ## Architecture
 
-- **wazero**: Embeds a Rust-based Polyglot WASM module for high-speed SQL transpilation and reference extraction.
-- **SQLite State**: Locally tracks applied environments and model fingerprints (`.sqlforge/state.db`).
-- **Cobra CLI**: The user-facing command structure.
+- **wazero**: Embeds a Rust-based Polyglot WASM module for structural SQL analysis and reference extraction.
+- **Project state**: Gitignored `.sqlforge/state.db` tracks **environments**, **fingerprints**, and last **apply** per **model**.
+- **Warehouse connection**: `sqlforge.yml` `virtual:` block sets dialect and connection (not an environment name).
+- **Cobra CLI**: Primary interface; **SQLForge MCP server** for read-heavy agent flows (`sqlforge mcp`).
+- **Web GUI** (`ui/`): Optional; npm is **build-time only**—see [`ui/SECURITY.md`](ui/SECURITY.md).
+
+## Documentation
+
+Docs under `docs/` follow [Diátaxis](https://diataxis.fr/). New pages require YAML frontmatter per the org [content taxonomy](../docs/taxonomy.yaml); validate with [`scripts/validate-content-frontmatter.sh`](scripts/validate-content-frontmatter.sh).
 
 ## Contributing
 
 We welcome contributions! If you want to run the tests, fuzzers, or understand how the WASM polyglot is integrated, please read our [Contributing Guide](CONTRIBUTING.md).
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) and [ROADMAP.md](ROADMAP.md) for more details.
+See [ARCHITECTURE.md](ARCHITECTURE.md), [ROADMAP.md](ROADMAP.md), [CONTEXT.md](CONTEXT.md) (domain glossary), and [docs/adr/](docs/adr/) for architecture decisions.

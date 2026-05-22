@@ -1,4 +1,17 @@
+---
+title: Incremental materialization design
+description: Design plan for complex incremental model materialization in SQLForge.
+product: drover-sqlforge
+audience: platform-operator
+doc_type: explanation
+topics:
+  - data-warehousing
+surface: repo-docs
+---
+
 # Implementation Plan: Complex Incremental Materialization
+
+> **Glossary:** [`CONTEXT.md`](../../CONTEXT.md) § Incremental models. **Status:** Core `TableExists` + `CreateIncrementalMergeDDL` path is implemented; open questions below remain for schema drift and **full refresh**.
 
 ## Goal Description
 Currently, SQLForge treats `materialized: incremental` models identically to `table` models, completely overwriting them upon every execution. Our objective is to design and implement robust, cross-dialect incremental logic (Append, Upsert/Merge, Insert-Overwrite) so that massive datasets can be updated efficiently without full rebuilds.

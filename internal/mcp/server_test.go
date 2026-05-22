@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer_ServeHTTP(t *testing.T) {
-	server := NewServer("test-api-key", nil, nil)
+	server := NewServer("test-api-key", nil)
 
 	tests := []struct {
 		name           string
@@ -116,7 +116,7 @@ func TestServer_ServeHTTP(t *testing.T) {
 
 func TestServer_ServeHTTP_NoAuth(t *testing.T) {
 	// If API key is empty, it shouldn't check auth
-	server := NewServer("", nil, nil)
+	server := NewServer("", nil)
 	req := httptest.NewRequest(http.MethodPost, "/mcp", bytes.NewBufferString(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	w := httptest.NewRecorder()
 	server.ServeHTTP(w, req)
@@ -127,7 +127,7 @@ func TestServer_ServeHTTP_NoAuth(t *testing.T) {
 }
 
 func TestServer_ServeHTTP_ToolError(t *testing.T) {
-	server := NewServer("", nil, nil)
+	server := NewServer("", nil)
 	// Add a dummy tool that fails
 	server.Registry.Register(Tool{
 		Name: "fail_tool",

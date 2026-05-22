@@ -3,11 +3,13 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/drover-org/drover-sqlforge/internal/graph"
 	"github.com/drover-org/drover-sqlforge/internal/model"
 	"github.com/drover-org/drover-sqlforge/internal/parser"
+	"github.com/drover-org/drover-sqlforge/internal/project"
 	"github.com/drover-org/drover-sqlforge/internal/semantic"
 )
 
@@ -25,7 +27,7 @@ func TestTools_ListModels(t *testing.T) {
 	}
 
 	reg := NewRegistry()
-	reg.InitializeCoreTools(dag, nil)
+	reg.InitializeCoreTools(&project.Runtime{DAG: dag}, NewPlanStore())
 
 	tool, ok := reg.Get("list_models")
 	if !ok {
@@ -74,7 +76,7 @@ func TestTools_GetModel(t *testing.T) {
 	}
 
 	reg := NewRegistry()
-	reg.InitializeCoreTools(dag, nil)
+	reg.InitializeCoreTools(&project.Runtime{DAG: dag}, NewPlanStore())
 
 	tool, _ := reg.Get("get_model")
 
@@ -90,6 +92,38 @@ func TestTools_GetModel(t *testing.T) {
 		}
 		if m["sql"] != "SELECT * FROM x" {
 			t.Errorf("expected SQL 'SELECT * FROM x', got %v", m["sql"])
+		}
+	})
+
+	t.Run("Column lineage", func(t *testing.T) {
+		p, err := parser.NewParser(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer p.Close()
+
+		sql := `SELECT a.id AS user_id FROM src_users a`
+		dag := &graph.DAG{
+			Nodes: map[string]*model.Asset{
+				"users": {Name: "users", SQL: sql},
+			},
+		}
+		reg2 := NewRegistry()
+		reg2.InitializeCoreTools(&project.Runtime{DAG: dag, Parser: p}, NewPlanStore())
+		tool2, _ := reg2.Get("get_model")
+
+		res, err := tool2.Handler(context.Background(), []byte(`{"model_name": "users"}`))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		m := res.(map[string]interface{})
+		raw, ok := m["column_lineage"]
+		if !ok {
+			t.Fatal("expected column_lineage in response")
+		}
+		b, _ := json.Marshal(raw)
+		if !strings.Contains(string(b), "src_users") {
+			t.Errorf("expected lineage refs, got %s", b)
 		}
 	})
 
@@ -109,7 +143,7 @@ func TestTools_GetModel(t *testing.T) {
 
 	t.Run("No Context", func(t *testing.T) {
 		reg2 := NewRegistry()
-		reg2.InitializeCoreTools(nil, nil)
+		reg2.InitializeCoreTools(nil, NewPlanStore())
 		tool2, _ := reg2.Get("get_model")
 		_, err := tool2.Handler(context.Background(), []byte(`{"model_name": "model_a"}`))
 		if err == nil {
@@ -126,7 +160,7 @@ func TestTools_Metrics(t *testing.T) {
 	}
 
 	reg := NewRegistry()
-	reg.InitializeCoreTools(nil, semGraph)
+	reg.InitializeCoreTools(&project.Runtime{Semantic: semGraph}, NewPlanStore())
 
 	t.Run("List Metrics", func(t *testing.T) {
 		tool, _ := reg.Get("list_metrics")
@@ -142,7 +176,7 @@ func TestTools_Metrics(t *testing.T) {
 
 	t.Run("List Metrics No Context", func(t *testing.T) {
 		reg2 := NewRegistry()
-		reg2.InitializeCoreTools(nil, nil)
+		reg2.InitializeCoreTools(nil, NewPlanStore())
 		tool2, _ := reg2.Get("list_metrics")
 		_, err := tool2.Handler(context.Background(), []byte(`{}`))
 		if err == nil {
@@ -168,7 +202,7 @@ func TestTools_Metrics(t *testing.T) {
 
 	t.Run("Query Metric - No Context", func(t *testing.T) {
 		reg2 := NewRegistry()
-		reg2.InitializeCoreTools(nil, nil)
+		reg2.InitializeCoreTools(nil, NewPlanStore())
 		tool2, _ := reg2.Get("query_metric")
 		_, err := tool2.Handler(context.Background(), []byte(`{"name":"revenue","dimensions":[]}`))
 		if err == nil {
@@ -177,25 +211,19 @@ func TestTools_Metrics(t *testing.T) {
 	})
 }
 
-func TestTools_Placeholders(t *testing.T) {
+func TestTools_PlanApplyChangeValidation(t *testing.T) {
 	reg := NewRegistry()
-	reg.InitializeCoreTools(nil, nil)
+	reg.InitializeCoreTools(nil, NewPlanStore())
 
-	tool, _ := reg.Get("plan_change")
-	res, err := tool.Handler(context.Background(), []byte(`{}`))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if res != "Not Implemented" {
-		t.Errorf("expected Not Implemented, got %v", res)
+	planTool, _ := reg.Get("plan_change")
+	_, err := planTool.Handler(context.Background(), []byte(`{}`))
+	if err == nil {
+		t.Fatal("expected error for missing params")
 	}
 
-	tool2, _ := reg.Get("apply_change")
-	res2, err := tool2.Handler(context.Background(), []byte(`{}`))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if res2 != "Not Implemented" {
-		t.Errorf("expected Not Implemented, got %v", res2)
+	applyTool, _ := reg.Get("apply_change")
+	_, err = applyTool.Handler(context.Background(), []byte(`{}`))
+	if err == nil {
+		t.Fatal("expected error for missing plan_id")
 	}
 }

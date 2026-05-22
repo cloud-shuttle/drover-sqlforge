@@ -4,7 +4,7 @@ build: ui
 	go build -o sqlforge ./cmd/sqlforge
 
 ui:
-	cd ui && npm install && npm run build
+	cd ui && npm ci && npm run build
 
 wasm:
 	# Placeholder for future Rust -> WASM build step

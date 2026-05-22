@@ -17,3 +17,11 @@ type ModelState struct {
 	MaterializedAs string    `json:"materialized_as"`
 	Environment    string    `json:"environment"`
 }
+
+type SnapshotState struct {
+	SnapshotName string    `json:"snapshot_name"`
+	Environment  string    `json:"environment"`
+	Fingerprint  string    `json:"fingerprint"`
+	LastApplied  time.Time `json:"last_applied"`
+	Strategy     string    `json:"strategy"`
+}

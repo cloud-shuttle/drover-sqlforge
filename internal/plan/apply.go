@@ -83,9 +83,17 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			}
 
 			if !exists {
-				ddl = vMgr.Runner().CreateTableDDL(schema, a.Name, transpiledSQL)
+				var errDDL error
+				ddl, errDDL = virtual.BuildIncrementalInitialDDL(vMgr.Runner().Name(), schema, a.Name, transpiledSQL, a.Config)
+				if errDDL != nil {
+					return fmt.Errorf("incremental initial build for %s: %w", a.Name, errDDL)
+				}
 			} else {
-				ddl = vMgr.Runner().CreateIncrementalMergeDDL(schema, a.Name, transpiledSQL, a.Config)
+				var errDDL error
+				ddl, errDDL = virtual.BuildIncrementalMergeDDL(vMgr.Runner().Name(), schema, a.Name, transpiledSQL, a.Config)
+				if errDDL != nil {
+					return fmt.Errorf("incremental merge for %s: %w", a.Name, errDDL)
+				}
 			}
 		} else if mat == "table" {
 			ddl = vMgr.Runner().CreateTableDDL(schema, a.Name, transpiledSQL)

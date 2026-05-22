@@ -103,9 +103,11 @@ func (r *ClickHouseRunner) TableExists(ctx context.Context, schema, table string
 }
 
 func (r *ClickHouseRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
-	// ClickHouse usually does append via INSERT INTO
-	// For upsert, user needs to have specified ENGINE = ReplacingMergeTree during initial create
-	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
+	ddl, err := BuildIncrementalMergeDDL(r.Name(), schema, table, selectSQL, config)
+	if err != nil {
+		return fmt.Sprintf("-- error: %v", err)
+	}
+	return ddl
 }
 
 func (r *ClickHouseRunner) QueryCount(ctx context.Context, sql string) (int, error) {

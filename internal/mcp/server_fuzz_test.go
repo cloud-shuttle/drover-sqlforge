@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/drover-org/drover-sqlforge/internal/graph"
+	"github.com/drover-org/drover-sqlforge/internal/project"
 	"github.com/drover-org/drover-sqlforge/internal/semantic"
 )
 
@@ -19,9 +20,8 @@ func FuzzServerHTTP(f *testing.F) {
 	f.Add([]byte(`{malformed json}`))
 	f.Add([]byte(``))
 
-	dag := graph.NewDAG()
-	semGraph := &semantic.Graph{}
-	server := NewServer("", dag, semGraph)
+	rt := &project.Runtime{DAG: graph.NewDAG(), Semantic: &semantic.Graph{}}
+	server := NewServer("", rt)
 
 	f.Fuzz(func(t *testing.T, payload []byte) {
 		req := httptest.NewRequest(http.MethodPost, "/mcp", bytes.NewReader(payload))

@@ -1,3 +1,15 @@
+---
+title: SQLForge gap analysis
+description: Strategic gaps vs dbt and recommended roadmap for SQLForge capabilities.
+product: drover-sqlforge
+audience: platform-operator
+doc_type: explanation
+topics:
+  - data-warehousing
+  - documentation
+surface: repo-docs
+---
+
 # SQLForge Gap Analysis & Strategic Recommendations
 
 ## Executive Summary
@@ -40,9 +52,9 @@ We divide our feature gaps into two categories: intentional omissions that align
 ### Unintentional Gaps (Feature Parity Needs)
 
 *   **SCD Type 2 History Tracking (Snapshots):**
-    *   **The Gap:** Tracking slowly changing dimensions over time is a fundamental data warehousing need. dbt handles this natively via `dbt snapshot`. SQLForge currently lacks automated historical tracking.
+    *   **Status (2026-05):** Shipped via `sqlforge snapshot` and `snapshots/*.sql` ([ADR 0004](../adr/0004-historized-snapshot.md)). Remaining gap: `check` strategy, ClickHouse row-level close, and `sqlforge plan` integration for snapshots.
 *   **Explicit Column-Level Lineage:**
-    *   **The Gap:** While our Polyglot WASM parser can map table dependencies, enterprise users increasingly expect rich, explicit column-level lineage reporting (as seen in dbt Cloud and SQLMesh).
+    *   **Status (v1):** `sqlforge lineage` and MCP `get_model.column_lineage` ship structural SELECT/FROM parsing. WASM-backed column tracking remains a follow-up for complex expressions and metrics.
 *   **Ecosystem & Package Management:**
     *   **The Gap:** dbt's massive package hub (Fivetran ad attribution, Stripe data models) is a huge driver of adoption. SQLForge users currently have to build all business logic from scratch.
 *   **Python/PySpark Models:**
@@ -58,11 +70,7 @@ Based on the gap analysis, here is the prioritized roadmap for what SQLForge sho
 
 ### High Priority (Immediate Next Steps)
 
-1.  **Implement Native Snapshots (SCD Type 2)**
-    *   **Why:** This is a dealbreaker for many data teams migrating from dbt. 
-    *   **How:** Build a `sqlforge snapshot` command that leverages our AST diffing engine to generate idempotent `MERGE` or `INSERT` statements that automatically handle `valid_from` and `valid_to` columns without requiring users to write the boilerplate.
-
-2.  **Column-Level Lineage via Polyglot WASM**
+1.  **Column-Level Lineage via Polyglot WASM**
     *   **Why:** We already have the hardest part built: the AST parser. Exposing column lineage is a massive enterprise feature that sets us apart from basic execution runners.
     *   **How:** Extend the Rust WASM module to output column tracking arrays alongside table dependencies. Expose this via the CLI (`sqlforge lineage`) and the MCP server so AI agents can query the lineage of a specific metric.
 

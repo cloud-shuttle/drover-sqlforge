@@ -6,26 +6,26 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/semantic"
+	"github.com/drover-org/drover-sqlforge/internal/project"
 )
 
 type Server struct {
 	Registry *Registry
 	APIKey   string
-	DAG      *graph.DAG
-	Semantic *semantic.Graph
+	Runtime  *project.Runtime
+	Plans    *PlanStore
 }
 
-func NewServer(apiKey string, dag *graph.DAG, semGraph *semantic.Graph) *Server {
+func NewServer(apiKey string, rt *project.Runtime) *Server {
+	plans := NewPlanStore()
 	registry := NewRegistry()
-	registry.InitializeCoreTools(dag, semGraph)
+	registry.InitializeCoreTools(rt, plans)
 
 	return &Server{
 		Registry: registry,
 		APIKey:   apiKey,
-		DAG:      dag,
-		Semantic: semGraph,
+		Runtime:  rt,
+		Plans:    plans,
 	}
 }
 

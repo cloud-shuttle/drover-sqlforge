@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/drover-org/drover-sqlforge/internal/graph"
+	"github.com/drover-org/drover-sqlforge/internal/project"
 	"github.com/drover-org/drover-sqlforge/internal/semantic"
 )
 
@@ -59,8 +60,14 @@ func (r *Registry) ListTools() []Tool {
 	return list
 }
 
-// InitializeCoreTools registers the core SQLForge tools
-func (r *Registry) InitializeCoreTools(dag *graph.DAG, semGraph *semantic.Graph) {
+// InitializeCoreTools registers the core SQLForge tools.
+func (r *Registry) InitializeCoreTools(rt *project.Runtime, plans *PlanStore) {
+	var dag *graph.DAG
+	var semGraph *semantic.Graph
+	if rt != nil {
+		dag = rt.DAG
+		semGraph = rt.Semantic
+	}
 	r.Register(Tool{
 		Name:        "list_models",
 		Description: "Returns all models in the project with metadata and fingerprints",
@@ -137,6 +144,12 @@ func (r *Registry) InitializeCoreTools(dag *graph.DAG, semGraph *semantic.Graph)
 				resp["ast_value"] = node.AST.Value
 			}
 
+			if rt != nil && rt.Parser != nil {
+				if cols, err := rt.Parser.ExtractColumnLineage(node.SQL); err == nil {
+					resp["column_lineage"] = cols
+				}
+			}
+
 			return resp, nil
 		},
 	})
@@ -201,7 +214,7 @@ func (r *Registry) InitializeCoreTools(dag *graph.DAG, semGraph *semantic.Graph)
 
 	r.Register(Tool{
 		Name:        "plan_change",
-		Description: "Propose a SQL change to a model and receive an execution plan with impact analysis",
+		Description: "Propose new model SQL and return an execution plan with plan_id for apply_change",
 		InputSchema: ToolSchema{
 			Type: "object",
 			Properties: map[string]SchemaProperty{
@@ -211,22 +224,41 @@ func (r *Registry) InitializeCoreTools(dag *graph.DAG, semGraph *semantic.Graph)
 			Required: []string{"model_name", "proposed_sql"},
 		},
 		Handler: func(ctx context.Context, params []byte) (interface{}, error) {
-			return "Not Implemented", nil
+			var args struct {
+				ModelName   string `json:"model_name"`
+				ProposedSQL string `json:"proposed_sql"`
+			}
+			if err := json.Unmarshal(params, &args); err != nil {
+				return nil, fmt.Errorf("invalid parameters")
+			}
+			if args.ModelName == "" || args.ProposedSQL == "" {
+				return nil, fmt.Errorf("model_name and proposed_sql are required")
+			}
+			return planChange(rt, plans, args.ModelName, args.ProposedSQL)
 		},
 	})
 
 	r.Register(Tool{
 		Name:        "apply_change",
-		Description: "Execute an approved execution plan",
+		Description: "Execute a plan_id returned by plan_change",
 		InputSchema: ToolSchema{
 			Type: "object",
 			Properties: map[string]SchemaProperty{
-				"plan_id": {Type: "string", Description: "The ID of the plan to execute"},
+				"plan_id": {Type: "string", Description: "plan_id from plan_change"},
 			},
 			Required: []string{"plan_id"},
 		},
 		Handler: func(ctx context.Context, params []byte) (interface{}, error) {
-			return "Not Implemented", nil
+			var args struct {
+				PlanID string `json:"plan_id"`
+			}
+			if err := json.Unmarshal(params, &args); err != nil {
+				return nil, fmt.Errorf("invalid parameters")
+			}
+			if args.PlanID == "" {
+				return nil, fmt.Errorf("plan_id is required")
+			}
+			return applyChange(ctx, rt, plans, args.PlanID)
 		},
 	})
 }

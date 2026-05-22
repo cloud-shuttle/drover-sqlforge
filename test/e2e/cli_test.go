@@ -125,3 +125,153 @@ SELECT NULL AS user_id;`
 		t.Errorf("Expected error to mention data quality test failed, got: %s", out)
 	}
 }
+
+func TestE2ESnapshot(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get wd: %v", err)
+	}
+	projectRoot := filepath.Join(cwd, "..", "..")
+	cliPath := filepath.Join(projectRoot, "sqlforge")
+	if _, err := os.Stat(cliPath); os.IsNotExist(err) {
+		t.Fatalf("sqlforge binary not found at %s. Run 'make e2e' first.", cliPath)
+	}
+
+	exampleDir := filepath.Join(projectRoot, "examples", "agentic_retail_2026")
+	stateDir := filepath.Join(exampleDir, ".sqlforge")
+	os.RemoveAll(stateDir)
+	defer os.RemoveAll(stateDir)
+
+	runCLI := func(args ...string) (string, error) {
+		cmd := exec.Command(cliPath, args...)
+		cmd.Dir = exampleDir
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		err := cmd.Run()
+		return out.String(), err
+	}
+
+	out, err := runCLI("snapshot", "prod")
+	if err != nil {
+		t.Fatalf("snapshot prod failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "users_snapshot: ok") {
+		t.Errorf("expected users_snapshot success, got: %s", out)
+	}
+	if !strings.Contains(out, "initial build") {
+		t.Errorf("expected initial build on first run, got: %s", out)
+	}
+
+	stateMgr, err := state.NewManager(exampleDir)
+	if err != nil {
+		t.Fatalf("state manager: %v", err)
+	}
+	st, err := stateMgr.Store.GetSnapshotState("users_snapshot", "prod")
+	if err != nil {
+		t.Fatalf("expected snapshot state: %v", err)
+	}
+	if st.Strategy != "timestamp" || st.Fingerprint == "" {
+		t.Errorf("unexpected snapshot state: %+v", st)
+	}
+
+	out, err = runCLI("snapshot", "prod", "users_snapshot")
+	if err != nil {
+		t.Fatalf("second snapshot run failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "incremental run") {
+		t.Errorf("expected incremental run on second apply, got: %s", out)
+	}
+}
+
+func TestE2EEnvCreate(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get wd: %v", err)
+	}
+	projectRoot := filepath.Join(cwd, "..", "..")
+	cliPath := filepath.Join(projectRoot, "sqlforge")
+	if _, err := os.Stat(cliPath); os.IsNotExist(err) {
+		t.Fatalf("sqlforge binary not found at %s. Run 'make e2e' first.", cliPath)
+	}
+
+	exampleDir := filepath.Join(projectRoot, "examples", "agentic_retail_2026")
+	stateDir := filepath.Join(exampleDir, ".sqlforge")
+	os.RemoveAll(stateDir)
+	defer os.RemoveAll(stateDir)
+
+	runCLI := func(args ...string) (string, error) {
+		cmd := exec.Command(cliPath, args...)
+		cmd.Dir = exampleDir
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		err := cmd.Run()
+		return out.String(), err
+	}
+
+	out, err := runCLI("env", "create", "preview_e2e", "--base-env", "prod")
+	if err != nil {
+		t.Fatalf("env create failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Created environment preview_e2e") {
+		t.Errorf("expected create confirmation, got: %s", out)
+	}
+	if !strings.Contains(out, "sqlforge__preview_e2e") {
+		t.Errorf("expected schema in output, got: %s", out)
+	}
+
+	stateMgr, err := state.NewManager(exampleDir)
+	if err != nil {
+		t.Fatalf("state manager: %v", err)
+	}
+	env, err := stateMgr.Store.GetEnvironment("preview_e2e")
+	if err != nil {
+		t.Fatalf("expected preview_e2e in state: %v", err)
+	}
+	if env.Schema != "sqlforge__preview_e2e" || env.BaseEnv != "prod" {
+		t.Errorf("unexpected env: %+v", env)
+	}
+
+	out, err = runCLI("env", "create", "preview_e2e", "--base-env", "prod")
+	if err != nil {
+		t.Fatalf("idempotent env create failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "Created environment preview_e2e") {
+		t.Errorf("expected idempotent create message, got: %s", out)
+	}
+}
+
+func TestE2ELineage(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get wd: %v", err)
+	}
+	projectRoot := filepath.Join(cwd, "..", "..")
+	cliPath := filepath.Join(projectRoot, "sqlforge")
+	if _, err := os.Stat(cliPath); os.IsNotExist(err) {
+		t.Fatalf("sqlforge binary not found at %s. Run 'make e2e' first.", cliPath)
+	}
+
+	exampleDir := filepath.Join(projectRoot, "examples", "agentic_retail_2026")
+	runCLI := func(args ...string) (string, error) {
+		cmd := exec.Command(cliPath, args...)
+		cmd.Dir = exampleDir
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		err := cmd.Run()
+		return out.String(), err
+	}
+
+	out, err := runCLI("lineage", "customer_360")
+	if err != nil {
+		t.Fatalf("lineage failed: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "customer_360") {
+		t.Errorf("expected model header, got: %s", out)
+	}
+	if !strings.Contains(out, "user_id <- stg_users.user_id") {
+		t.Errorf("expected column lineage edge, got: %s", out)
+	}
+}

@@ -2,38 +2,59 @@
 
 Welcome, AI Agent. This file contains the system prompts, architectural context, and tool configurations you need to successfully work on the `drover-sqlforge` repository.
 
+**Domain language:** [`CONTEXT.md`](CONTEXT.md) (glossary). **Decisions:** [`docs/adr/`](docs/adr/).
+
 ## Ecosystem Role
 
-> **Part of the Drover Ecosystem**: `drover-sqlforge` serves as the **Data Automation Engine**. It is an agent-ready alternative to dbt. It handles data transformations, schema cloning, and AST structural hashing. Through its native MCP server, `drover-code` agents can interact with the data layer autonomously.
+> **Part of the Drover Ecosystem**: `drover-sqlforge` is the **data automation engine** for a **data project** (`sqlforge.yml` + `models/`). It handles transformations, **plan**/**apply**, semantic **metrics**, and AST **fingerprints**. **Drover Code** agents integrate via **CLI invocation** in the workspace ([ADR 0002](docs/adr/0002-cli-invocation-drover-code-integration.md)); a colocated **SQLForge MCP server** supports read-heavy flows. Distinct from **Drover Brain** (repository knowledge).
 
 ## 1. Persona & System Prompt
-You are an expert Go Developer, Data Engineer, and WebAssembly (WASM) Integration Specialist. You are working on **SQLForge**, a pure Go-native, hyper-fast alternative to dbt that relies on compile-time AST analysis instead of Jinja templating. 
 
-Your goals are to write robust, hyper-optimized Go code, maintain strict zero-copy materialization practices, and ensure the Model Context Protocol (MCP) server remains secure.
+You are an expert Go Developer, Data Engineer, and WebAssembly (WASM) Integration Specialist. You are working on **SQLForge**, a pure Go-native alternative to dbt that relies on compile-time AST analysis instead of Jinja templating ([ADR 0001](docs/adr/0001-no-jinja-policy.md)).
+
+Your goals are to write robust, hyper-optimized Go code, preserve **zero-copy isolation** where supported, and keep the **SQLForge MCP server** aligned with **agent table blindness** (metrics over raw table SQL).
 
 ## 2. Core Architecture Context
-- **Polyglot WASM Parser:** Located in `internal/parser/polyglot.wasm`, executed via `wazero`. We use this to structurally parse SQL to build DAGs and extract dependencies. 
-- **The Tokenizer:** Because the Rust WASM module does not yet support AST-to-String reconstruction, we use a custom Go lexer in `internal/parser/tokenizer.go` to safely inject environment schemas into SQL strings during the Apply phase.
-- **State Management:** Uses embedded `go-sqlite3` to track environment schemas and model AST fingerprints.
-- **Agentic Tier (MCP):** SQLForge natively exposes tools to AI agents via a JSON-RPC HTTP server (`internal/mcp`). 
+
+- **Polyglot WASM parser:** `internal/parser/polyglot.wasm` via `wazero` — **structural references** and ASTs for the **model DAG**.
+- **Tokenizer:** `internal/parser/tokenizer.go` injects **warehouse schema** prefixes during **apply** (WASM does not yet stringify ASTs).
+- **Project state:** `internal/state` — SQLite under `.sqlforge/state.db` (**environments**, **fingerprints**).
+- **Warehouse connection:** `sqlforge.yml` `virtual:` (dialect + connection). Not the same as an **environment** (`plan` / `apply` target).
+- **Agentic tier (MCP):** JSON-RPC HTTP server in `internal/mcp` (`sqlforge mcp [environment]`).
 
 ## 3. Tool Configurations & Commands
+
 When working in this repository, use the following commands to build and verify your work:
 
-*   **Build the CLI:** `make cli` (outputs to `./sqlforge`)
+*   **Build the CLI:** `make cli` (outputs to `./sqlforge`; runs `npm ci` + UI build—see [`ui/SECURITY.md`](ui/SECURITY.md))
+*   **UI / npm policy:** npm is build-time only for `ui/`; do not add direct deps without justification; never reimplement tiny transitive packages
 *   **Run Unit Tests:** `go test ./...`
-*   **Run End-to-End Tests (Fast):** `make e2e` (This uses the `DuckDBRunner` stub and runs in milliseconds).
-*   **Run Live Integration Tests:** `make integration` (This spins up a ClickHouse Docker container, runs the E2E suite against it, and tears it down).
-*   **Fuzz Testing:** If you add a new HTTP endpoint, WASM boundary, or parsing logic, you MUST run fuzz testing: `go test -fuzz=FuzzName ./path -fuzztime=10s`.
+*   **Run End-to-End Tests (Fast):** `make e2e` (DuckDB stub runner; milliseconds)
+*   **Run Live Integration Tests:** `make integration` (ClickHouse Docker)
+*   **Fuzz Testing:** New HTTP endpoints, WASM boundaries, or parsers: `go test -fuzz=FuzzName ./path -fuzztime=10s`
 
 ## 4. Strict Constraints & Guidelines
-1. **No CGO Bloat:** We actively avoid CGO where possible to keep the CLI lightweight. Do not import `go-duckdb` into the core binary; it requires C++ compilers. We will eventually move to a `go-plugin` gRPC architecture for massive drivers.
-2. **Never break the tokenizer:** The tokenizer (`internal/parser/tokenizer.go`) is heavily tested. If you modify it, ensure `tokenizer_test.go` and `make integration` still pass.
-3. **Respect the Alpha:** The repository is currently at `v0.1.0-alpha`. Do not introduce massive breaking architectural changes without creating a detailed Implementation Plan artifact for user review.
 
-## 5. Available MCP Tools
-If you are interacting with SQLForge *via* its own MCP server, you have access to:
-- `get_model`: Fetch SQL and AST context.
-- `list_metrics`: Retrieve semantic layer metric definitions.
-- `query_metric`: Dynamically compile ANSI SQL from semantic primitives.
-- `plan_change` / `apply_change`: Execute autonomous deployments.
+1. **No CGO bloat:** Avoid CGO in the core binary (no `go-duckdb` in main). Heavy drivers move to gRPC plugins ([`docs/explanation/04-grpc-plugin-architecture.md`](docs/explanation/04-grpc-plugin-architecture.md)).
+2. **Never break the tokenizer:** Run `tokenizer_test.go` and `make integration` after edits.
+3. **Respect the alpha:** `v0.1.0-alpha` — large breaking changes need an implementation plan and review.
+4. **Terminology:** Say **model**, not *asset*. Say **environment**, not *virtual environment* (the YAML key `virtual:` is **warehouse connection**). See [`CONTEXT.md`](CONTEXT.md).
+
+## 5. MCP tools (SQLForge MCP server)
+
+Bound to one **MCP session environment** at server start. Prefer **CLI invocation** for **plan** and **apply** until mutation tools ship.
+
+| Tool | v1 status | Use |
+|------|-----------|-----|
+| `list_metrics` | Implemented | Discover semantic **metrics** |
+| `query_metric` | Implemented | **Metric query** (compiled SQL only) |
+| `list_models` | Implemented | Model names, config, **fingerprints** |
+| `get_model` | Implemented | Full model SQL — **data engineer** / debug only; not default **agent** path |
+| `plan_change` | Implemented | Propose SQL for a **model** → `plan_id` + changed/impacted lists |
+| `apply_change` | Implemented | Run a `plan_id` from `plan_change` (ephemeral store, 2h TTL) |
+
+**Drover Code agents (v1):** prefer `plan_change` → review → `apply_change`, or CLI `sqlforge plan` / `sqlforge apply` in a **workspace-bound data project**. **Drover Warden** `scope: sqlforge` policies apply to generated SQL.
+
+**Environments:** `sqlforge env create <name> [--base-env prod]` creates the **warehouse schema** for a new **environment**.
+
+**Lineage:** `sqlforge lineage [model]` shows output column → upstream column refs; MCP `get_model` includes `column_lineage`.

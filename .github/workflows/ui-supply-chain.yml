@@ -1,0 +1,46 @@
+name: UI supply chain
+
+on:
+  pull_request:
+    paths:
+      - "ui/**"
+  push:
+    branches: [main]
+    paths:
+      - "ui/**"
+
+permissions:
+  contents: read
+
+jobs:
+  ui-audit:
+    name: npm ci, audit, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install (lockfile only)
+        run: npm ci
+
+      - name: Audit (moderate+)
+        run: npm audit --audit-level=moderate
+
+      - name: Build static assets
+        run: npm run build
+
+      - name: Verify Go embed compiles
+        working-directory: ${{ github.workspace }}
+        env:
+          CGO_ENABLED: "0"
+        run: go build -o /tmp/sqlforge ./cmd/sqlforge

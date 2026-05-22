@@ -1,3 +1,15 @@
+---
+title: gRPC plugin architecture for virtual runners
+description: Design for migrating SQLForge virtual runners to a gRPC plugin model.
+product: drover-sqlforge
+audience: platform-operator
+doc_type: explanation
+topics:
+  - data-warehousing
+  - deployment
+surface: repo-docs
+---
+
 # Migrating Virtual Runners to a gRPC Plugin Architecture
 
 As SQLForge approaches v1.0 and expands its footprint to support numerous dialects (Snowflake, BigQuery, Postgres, DuckDB, Databricks), embedding all dialect-specific drivers directly into the core `sqlforge` binary via `go.mod` is an unsustainable anti-pattern. 

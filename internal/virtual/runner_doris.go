@@ -44,11 +44,11 @@ func (r *DorisRunner) TableExists(ctx context.Context, schema, table string) (bo
 }
 
 func (r *DorisRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
-	uniqueKey := config["unique_key"]
-	if uniqueKey != "" {
-		return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s)\nON DUPLICATE KEY UPDATE *;", schema, table, selectSQL)
+	ddl, err := BuildIncrementalMergeDDL(r.Name(), schema, table, selectSQL, config)
+	if err != nil {
+		return fmt.Sprintf("-- error: %v", err)
 	}
-	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
+	return ddl
 }
 
 func (r *DorisRunner) QueryCount(ctx context.Context, sql string) (int, error) {

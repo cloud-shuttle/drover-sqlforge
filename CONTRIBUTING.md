@@ -1,8 +1,8 @@
 # Contributing to SQLForge 🛠️
 
-Welcome! We are excited to have you contribute to Drover SQLForge. As a modern, pure Go-native data modeling tool with embedded WASM intelligence, the codebase spans a few interesting paradigms. 
+Welcome! We are excited to have you contribute to Drover SQLForge. As a modern, pure Go-native data modeling tool with embedded WASM intelligence, the codebase spans a few interesting paradigms.
 
-This guide will help you understand the architecture, set up your local environment, and write tests.
+This guide will help you understand the architecture, set up your local environment, and write tests. **Domain terms:** [`CONTEXT.md`](CONTEXT.md). **ADRs:** [`docs/adr/`](docs/adr/).
 
 ## 1. Project Structure
 
@@ -14,14 +14,16 @@ The repository is organized following standard Go project layouts:
   - `config/`: YAML unmarshaling for `sqlforge.yml`.
   - `graph/`: Directed Acyclic Graph (DAG) construction and sorting algorithms.
   - `mcp/`: The Model Context Protocol (MCP) JSON-RPC HTTP server.
-  - `model/`: The file loader that reads `.sql` assets and extracts `-- @config` blocks.
+  - `model/`: Loads `.sql` **models** and parses `-- @key: value` **model config** lines (Go type `Asset` is internal only).
   - `parser/`: The **Polyglot WASM** runtime wrapper. This loads the embedded Rust parser to analyze SQL safely.
   - `plan/`: The state-diffing logic (`plan`) and the execution logic (`apply`).
   - `semantic/`: The YAML metrics engine and ANSI SQL compiler.
   - `state/`: The local SQLite persistence layer.
   - `virtual/`: The dialect-specific DDL generators (DuckDB, ClickHouse, Snowflake, etc.).
 - `examples/`: Sample `sqlforge.yml` projects you can use to run the CLI locally.
+- `snapshots/`: Historized snapshot definitions (SCD Type 2); applied via `sqlforge snapshot` ([ADR 0004](docs/adr/0004-historized-snapshot.md)).
 - `test/e2e/`: The End-to-End CLI testing suite.
+- `ui/`: Optional React DAG viewer (npm **build-time only**; static `dist/` embedded into the binary). Supply chain policy: [`ui/SECURITY.md`](ui/SECURITY.md).
 
 ## 2. Setting Up Your Environment
 
@@ -35,11 +37,16 @@ cd drover-sqlforge
 # Download dependencies
 go mod tidy
 
-# Build the CLI locally
+# Build the CLI locally (includes UI embed via npm — see ui/SECURITY.md)
 make cli
+
+# CLI + core tests only: still requires ui/dist for go:embed unless you ran make ui once
+go test ./...
 ```
 
 The executable will be generated at `./sqlforge`.
+
+**CLI-first contributors:** `plan`, `apply`, `query`, `snapshot`, and MCP do not need Node at runtime. You only need `cd ui && npm ci && npm run build` when changing the Web GUI or when `go build` fails on missing `ui/dist/`.
 
 ## 3. The WASM Boundary
 
@@ -79,9 +86,25 @@ go test -fuzz=FuzzServerHTTP ./internal/mcp -fuzztime=10s
 go test -fuzz=FuzzParser ./internal/parser -fuzztime=10s
 ```
 
-## 5. Submitting a Pull Request
+## 5. Dependencies and supply chain
+
+The product surface is **Go + embedded WASM**. npm exists only under `ui/` for the optional Web GUI.
+
+| Rule | Detail |
+|------|--------|
+| **Direct deps** | New entries in `ui/package.json` need PR justification (see [`ui/SECURITY.md`](ui/SECURITY.md)). |
+| **Lockfile** | Always commit `ui/package-lock.json`; use `npm ci` in CI, not `npm install`. |
+| **Audit** | From `ui/`: `npm audit` must be clean at **moderate** or higher before merge. |
+| **Overrides** | Use `package.json` `overrides` only for verified CVEs; document in PR. |
+| **Do not fork** | Do not reimplement tiny transitive packages; shrink **direct** deps or drop UI instead. |
+| **Production** | Hosted agents and workers should not require Node unless building the GUI image. |
+
+Full threat model and CI: [`ui/SECURITY.md`](ui/SECURITY.md) (GitHub Actions: `ui-supply-chain.yml` on `ui/**` changes).
+
+## 6. Submitting a Pull Request
 
 1. Ensure `make e2e` passes.
-2. If adding a new feature, add a corresponding test in `test/e2e/cli_test.go` or a unit test.
-3. If adding a new parser boundary or HTTP endpoint, add a Fuzz test.
-4. Open a PR! The `action.yml` GitHub Action will run automatically.
+2. If you changed `ui/package.json` or the lockfile, run `npm ci && npm audit` in `ui/`.
+3. If adding a new feature, add a corresponding test in `test/e2e/cli_test.go` or a unit test.
+4. If adding a new parser boundary or HTTP endpoint, add a Fuzz test.
+5. Open a PR! The [`action.yml`](action.yml) composite action runs **plan** and **apply** for **preview environments** ([ADR 0003](docs/adr/0003-preview-environment-ci.md)).

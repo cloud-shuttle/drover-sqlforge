@@ -10,16 +10,17 @@ import (
 
 	"github.com/drover-org/drover-sqlforge/internal/ai"
 	"github.com/drover-org/drover-sqlforge/internal/config"
-	"github.com/drover-org/drover-sqlforge/internal/graph"
 	"github.com/drover-org/drover-sqlforge/internal/model"
 	"github.com/drover-org/drover-sqlforge/internal/parser"
 	"github.com/drover-org/drover-sqlforge/internal/plan"
+	"github.com/drover-org/drover-sqlforge/internal/project"
 	"github.com/drover-org/drover-sqlforge/internal/semantic"
 	"github.com/drover-org/drover-sqlforge/internal/state"
 	"github.com/drover-org/drover-sqlforge/internal/virtual"
 )
 
 var dims []string
+var envBaseFlag string
 
 func init() {
 	rootCmd.AddCommand(planCmd)
@@ -33,90 +34,24 @@ func init() {
 	rootCmd.AddCommand(queryCmd)
 
 	envCmd.AddCommand(envCreateCmd)
+	envCreateCmd.Flags().StringVar(&envBaseFlag, "base-env", "", "Parent environment (default: default_environment from sqlforge.yml or prod)")
 }
 
-func runPipeline(envName string) (*plan.ExecutionPlan, *graph.DAG, *state.Manager, *virtual.Manager, *semantic.Graph, error) {
-	ctx := context.Background()
+func loadRuntime(envName string) (*project.Runtime, error) {
+	return project.LoadRuntime(".", envName)
+}
 
-	// Setup parser
-	p, err := parser.NewParser(ctx)
+func runPipeline(envName string) (*plan.ExecutionPlan, *project.Runtime, error) {
+	rt, err := loadRuntime(envName)
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("error setting up parser: %w", err)
+		return nil, nil, err
 	}
-	defer p.Close()
-
-	// Setup state
-	stateMgr, err := state.NewManager(".")
+	execPlan, err := rt.ExecutionPlan()
 	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("error setting up state manager: %w", err)
+		rt.Close()
+		return nil, nil, fmt.Errorf("error generating plan: %w", err)
 	}
-
-	// Setup virtual env manager
-	var runner virtual.Runner
-
-	// Load config to get runner details
-	cfg, err := config.LoadConfig(".")
-	if err != nil {
-		fmt.Printf("Warning: could not load config (%v). Using ClickHouse stub runner.\n", err)
-		runner, _ = virtual.NewRunner("clickhouse", "")
-	} else {
-		r, err := virtual.NewRunner(cfg.Virtual.Dialect, cfg.Virtual.Connection)
-		if err != nil {
-			return nil, nil, nil, nil, nil, fmt.Errorf("error setting up virtual runner: %w", err)
-		}
-		runner = r
-	}
-
-	vMgr := virtual.NewManager(runner, stateMgr)
-
-	// Load models
-	assets, err := model.LoadModels("models", p)
-	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("error loading models: %w", err)
-	}
-
-	// Setup env
-	env, err := stateMgr.GetOrCreateEnv(envName, "prod")
-	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("error getting env: %w", err)
-	}
-
-	// Load metrics and inject materialized ones
-	graphMetrics, err := semantic.LoadMetrics(".")
-	if err == nil && graphMetrics != nil {
-		// Pass empty schema since apply.go transpiler handles prefixing natively!
-		compiler := semantic.NewCompiler("")
-		for _, m := range graphMetrics.Metrics {
-			if m.Materialize {
-				sql, err := compiler.Compile(&m, m.Dimensions)
-				if err == nil {
-					asset := &model.Asset{
-						Name: "semantic__" + m.Name,
-						SQL:  sql,
-						Config: map[string]string{
-							"materialized": "view",
-						},
-						Dependencies: []string{m.Model},
-					}
-					assets = append(assets, asset)
-				}
-			}
-		}
-	}
-
-	// Build DAG
-	dag := graph.NewDAG()
-	if err := dag.Build(assets); err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("error building DAG: %w", err)
-	}
-
-	// Generate plan
-	execPlan, err := plan.GeneratePlan(env, assets, stateMgr, dag)
-	if err != nil {
-		return nil, nil, nil, nil, nil, fmt.Errorf("error generating plan: %w", err)
-	}
-
-	return execPlan, dag, stateMgr, vMgr, graphMetrics, nil
+	return execPlan, rt, nil
 }
 
 var planCmd = &cobra.Command{
@@ -129,11 +64,12 @@ var planCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Generating plan for environment: %s\n", envName)
-		execPlan, _, _, _, _, err := runPipeline(envName)
+		execPlan, rt, err := runPipeline(envName)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		defer rt.Close()
 
 		fmt.Printf("\nExecution Plan:\n")
 		fmt.Printf("  Changed Models: %d\n", len(execPlan.ChangedModels))
@@ -162,11 +98,12 @@ var applyCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Generating plan for environment: %s\n", envName)
-		execPlan, _, stateMgr, vMgr, _, err := runPipeline(envName)
+		execPlan, rt, err := runPipeline(envName)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		defer rt.Close()
 
 		if len(execPlan.ChangedModels) == 0 && len(execPlan.Impacted) == 0 {
 			fmt.Println("\nNothing to do. Environment is up to date.")
@@ -174,7 +111,7 @@ var applyCmd = &cobra.Command{
 		}
 
 		if !isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()) {
-			if err := plan.ApplyPlan(context.Background(), execPlan, stateMgr, vMgr, nil); err != nil {
+			if err := plan.ApplyPlan(context.Background(), execPlan, rt.StateMgr, rt.VMgr, nil); err != nil {
 				fmt.Printf("Error applying plan: %v\n", err)
 				os.Exit(1)
 			}
@@ -186,7 +123,7 @@ var applyCmd = &cobra.Command{
 
 		var applyErr error
 		go func() {
-			applyErr = plan.ApplyPlan(context.Background(), execPlan, stateMgr, vMgr, eventChan)
+			applyErr = plan.ApplyPlan(context.Background(), execPlan, rt.StateMgr, rt.VMgr, eventChan)
 			close(eventChan)
 		}()
 
@@ -260,14 +197,52 @@ var envCmd = &cobra.Command{
 
 var envCreateCmd = &cobra.Command{
 	Use:   "create [name]",
-	Short: "Create a new virtual environment",
+	Short: "Create a new environment",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			fmt.Println("Error: name is required")
 			return
 		}
-		fmt.Printf("Creating virtual environment %s...\n", args[0])
-		// Implementation would call virtual.CreateVirtualEnv
+
+		baseEnv := envBaseFlag
+		if baseEnv == "" {
+			if cfg, err := config.LoadConfig("."); err == nil && cfg.DefaultEnvironment != "" {
+				baseEnv = cfg.DefaultEnvironment
+			} else {
+				baseEnv = "prod"
+			}
+		}
+
+		stateMgr, err := state.NewManager(".")
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		cfg, err := config.LoadConfig(".")
+		var runner virtual.Runner
+		if err != nil {
+			runner, _ = virtual.NewRunner("clickhouse", "")
+		} else {
+			runner, err = virtual.NewRunner(cfg.Virtual.Dialect, cfg.Virtual.Connection)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		vMgr := virtual.NewManager(runner, stateMgr)
+		if err := vMgr.CreateVirtualEnv(context.Background(), args[0], baseEnv); err != nil {
+			fmt.Printf("Error creating environment: %v\n", err)
+			os.Exit(1)
+		}
+
+		env, err := stateMgr.GetOrCreateEnv(args[0], baseEnv)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Created environment %s (warehouse schema %s, base %s)\n", env.Name, env.Schema, env.BaseEnv)
 	},
 }
 

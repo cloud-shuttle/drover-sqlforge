@@ -3,7 +3,7 @@
 ## ✅ Phase 1: Foundation & MVP Engine (Complete)
 - [x] **Polyglot WASM Parser Integration**: Cross-platform, sub-millisecond AST generation for model extraction.
 - [x] **Model Loader & DAG Builder**: Structural reference resolution and chronological dependency tracking.
-- [x] **Zero-Copy Virtual Environments**: Idempotent materializations utilizing ClickHouse `CLONE` and `VIEW`.
+- [x] **Zero-copy isolation**: Idempotent materializations for non-prod **environments** (ClickHouse `CLONE`, `VIEW`, etc.).
 - [x] **State Management**: Embedded SQLite to track model AST fingerprints and environment schemas.
 - [x] **Plan / Apply Pipeline**: Topological sorting and execution logic for live cloud deployments.
 - [x] **Self-Contained Examples**: The `agentic_retail_2026` mock dataset running seamlessly via ClickHouse generator functions.
@@ -26,9 +26,14 @@
 
 ## ✅ Phase 4: Agentic Tier / MCP Server (Complete)
 - [x] **MCP Server**: Embed an HTTP server to expose SQLForge as a Model Context Protocol service for autonomous agents.
-- [x] **MCP Tool Registry**: Expose tools like `list_models`, `query_metric`, `plan_change`, and `apply_change` for agent usage.
+- [x] **MCP Tool Registry**: Read and mutation tools (`list_models`, `query_metric`, `plan_change`, `apply_change`, etc.); ephemeral plan store for `apply_change` ([ADR 0002](docs/adr/0002-cli-invocation-drover-code-integration.md)).
 - [x] **Interactive Execution**: WebSocket endpoints for live plan approval and step-by-step execution feedback for agents.
 - [x] **Security & Observability**: API key auth, rate limiting, and comprehensive request auditing for all agent interactions.
+
+## ✅ Phase 5.1: Lineage & env e2e (Complete)
+- [x] **Column lineage CLI**: `sqlforge lineage [model]` with structural SELECT/FROM parsing.
+- [x] **MCP column_lineage**: `get_model` returns per-column upstream refs.
+- [x] **env create e2e**: `TestE2EEnvCreate` validates CLI + SQLite state for preview environments.
 
 ## ✅ Phase 5: Stability & Developer Onboarding (Complete)
 - [x] **End-to-End Testing Expansion**: Full coverage for incremental workflows, data quality assertions, and CLI integrations.

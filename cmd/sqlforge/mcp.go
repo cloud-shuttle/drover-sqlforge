@@ -27,14 +27,14 @@ var mcpCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Loading context for environment: %s\n", envName)
-		_, dag, _, _, semanticLayer, err := runPipeline(envName)
+		rt, err := loadRuntime(envName)
 		if err != nil {
 			fmt.Printf("Failed to load project context: %v\n", err)
 			os.Exit(1)
 		}
+		defer rt.Close()
 
-		// Create MCP server instance
-		server := mcp.NewServer(mcpAPIKey, dag, semanticLayer)
+		server := mcp.NewServer(mcpAPIKey, rt)
 
 		// Register the JSON-RPC route
 		http.Handle("/mcp", server)

@@ -40,7 +40,11 @@ func (m *MockRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, 
 func (m *MockRunner) QueryCount(ctx context.Context, sql string) (int, error) {
 	return 0, nil
 }
-func (m *MockRunner) Name() string { return "mock" }
+func (m *MockRunner) Name() string { return "duckdb" }
+
+func (m *MockRunner) QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error) {
+	return nil, nil
+}
 
 func TestApplyPlanRouting(t *testing.T) {
 	tmpDir := t.TempDir()

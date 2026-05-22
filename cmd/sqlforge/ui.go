@@ -21,26 +21,27 @@ var uiCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Loading DAG for environment: %s\n", envName)
-		_, dag, stateMgr, virtualMgr, _, err := runPipeline(envName)
+		rt, err := loadRuntime(envName)
 		if err != nil {
 			fmt.Printf("Failed to load project: %v\n", err)
 			os.Exit(1)
 		}
+		defer rt.Close()
 
-		env, err := stateMgr.GetOrCreateEnv(envName, "prod")
+		env, err := rt.StateMgr.GetOrCreateEnv(envName, "prod")
 		if err != nil {
 			fmt.Printf("Failed to resolve environment: %v\n", err)
 			os.Exit(1)
 		}
 
 		// 1. API routes
-		http.HandleFunc("/api/dag", api.ServeDAG(dag))
+		http.HandleFunc("/api/dag", api.ServeDAG(rt.DAG))
 		http.HandleFunc("/api/models/", func(w http.ResponseWriter, r *http.Request) {
 			// Basic router for /api/models/...
 			if len(r.URL.Path) > 12 && r.URL.Path[len(r.URL.Path)-8:] == "/preview" {
-				api.ServeModelPreview(virtualMgr.Runner(), env.Schema)(w, r)
+				api.ServeModelPreview(rt.VMgr.Runner(), env.Schema)(w, r)
 			} else {
-				api.ServeModelDetails(dag)(w, r)
+				api.ServeModelDetails(rt.DAG)(w, r)
 			}
 		})
 

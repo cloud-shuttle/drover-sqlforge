@@ -37,6 +37,14 @@ func NewStore(projectPath string) (*Store, error) {
 			materialized_as TEXT,
 			PRIMARY KEY (model_name, environment)
 		);
+		CREATE TABLE IF NOT EXISTS snapshot_states (
+			snapshot_name TEXT,
+			environment TEXT,
+			fingerprint TEXT,
+			last_applied DATETIME,
+			strategy TEXT,
+			PRIMARY KEY (snapshot_name, environment)
+		);
 	`)
 
 	if err != nil {
@@ -77,5 +85,25 @@ func (s *Store) SaveModelState(state *ModelState) error {
 		INSERT OR REPLACE INTO model_states (model_name, environment, fingerprint, last_applied, materialized_as)
 		VALUES (?, ?, ?, ?, ?)`,
 		state.ModelName, state.Environment, state.Fingerprint, state.LastApplied, state.MaterializedAs)
+	return err
+}
+
+func (s *Store) GetSnapshotState(snapshotName, env string) (*SnapshotState, error) {
+	row := s.db.QueryRow(
+		"SELECT snapshot_name, environment, fingerprint, last_applied, strategy FROM snapshot_states WHERE snapshot_name = ? AND environment = ?",
+		snapshotName, env,
+	)
+	st := &SnapshotState{}
+	if err := row.Scan(&st.SnapshotName, &st.Environment, &st.Fingerprint, &st.LastApplied, &st.Strategy); err != nil {
+		return nil, err
+	}
+	return st, nil
+}
+
+func (s *Store) SaveSnapshotState(state *SnapshotState) error {
+	_, err := s.db.Exec(`
+		INSERT OR REPLACE INTO snapshot_states (snapshot_name, environment, fingerprint, last_applied, strategy)
+		VALUES (?, ?, ?, ?, ?)`,
+		state.SnapshotName, state.Environment, state.Fingerprint, state.LastApplied, state.Strategy)
 	return err
 }

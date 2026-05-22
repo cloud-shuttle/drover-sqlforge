@@ -1,6 +1,21 @@
+---
+title: Complex incremental materializations walkthrough
+description: Step-by-step tutorial for incremental model strategies in SQLForge.
+product: drover-sqlforge
+audience:
+  - platform-operator
+  - agent
+doc_type: tutorial
+topics:
+  - data-warehousing
+surface: repo-docs
+---
+
 # Complex Incremental Materializations Walkthrough
 
-I have successfully designed and implemented the architecture for cross-dialect incremental materializations in the SQLForge engine! 
+> **Terms:** [`CONTEXT.md`](../../CONTEXT.md) — **initial build**, **incremental run**, **incremental merge**, **unique key**, **incremental strategy** (`auto`, `append`, `merge`, `delete+insert`, `replacing_merge_tree`).
+
+I have successfully designed and implemented the architecture for cross-dialect incremental materializations in the SQLForge engine!
 
 ## What changed?
 

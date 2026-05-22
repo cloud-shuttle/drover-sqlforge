@@ -47,11 +47,11 @@ func (r *DuckDBRunner) TableExists(ctx context.Context, schema, table string) (b
 }
 
 func (r *DuckDBRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
-	uniqueKey := config["unique_key"]
-	if uniqueKey != "" {
-		return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s)\nON CONFLICT (%s) DO UPDATE SET *;", schema, table, selectSQL, uniqueKey)
+	ddl, err := BuildIncrementalMergeDDL(r.Name(), schema, table, selectSQL, config)
+	if err != nil {
+		return fmt.Sprintf("-- error: %v", err)
 	}
-	return fmt.Sprintf("INSERT INTO %s.%s\nSELECT * FROM (%s);", schema, table, selectSQL)
+	return ddl
 }
 
 func (r *DuckDBRunner) QueryCount(ctx context.Context, sql string) (int, error) {
