@@ -88,3 +88,6 @@ Optional hardening: Socket.dev, `npm ci --ignore-scripts`, Dependabot/Renovate g
 ## Contacts
 
 Security issues in SQLForge core: follow the org’s responsible disclosure process. For UI-only dependency concerns, include `package-lock.json` diff and `npm audit` output in the PR.
+
+Note: Every PR touching the `ui/` directory is automatically analyzed by the UI supply chain CI workflow.
+
