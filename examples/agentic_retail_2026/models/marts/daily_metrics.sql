@@ -1,12 +1,12 @@
--- @materialized: incremental
--- @incremental_strategy: auto
--- @unique_key: metric_date
--- @grain: metric_date
+-- @materialized: table
+-- @grain: metric_date, country, user_id
 
 SELECT 
-    DATE_TRUNC('day', event_time) AS metric_date,
-    COUNT(DISTINCT user_id) AS daily_active_users,
-    SUM(CASE WHEN event_type = 'purchase' THEN amount ELSE 0 END) AS daily_revenue,
-    AVG(session_duration) AS avg_session_duration
-FROM stg_events
-GROUP BY metric_date;
+    DATE_TRUNC('day', e.event_time) AS metric_date,
+    u.country AS country,
+    e.user_id AS user_id,
+    e.event_type AS event_type,
+    e.amount AS amount,
+    e.session_duration AS session_duration
+FROM stg_events e
+LEFT JOIN stg_users u ON e.user_id = u.user_id;

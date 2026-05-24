@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package proto;
+option go_package = "github.com/drover-org/drover-sqlforge/internal/virtual/proto";
+
+service RunnerPlugin {
+  rpc Name(Empty) returns (NameResponse);
+  rpc Exec(ExecRequest) returns (Empty);
+  rpc CreateSchemaDDL(CreateSchemaRequest) returns (DDLResponse);
+  rpc CreateTableDDL(CreateTableRequest) returns (DDLResponse);
+  rpc CreateViewDDL(CreateViewRequest) returns (DDLResponse);
+  rpc CreateMaterializedViewDDL(CreateMaterializedViewRequest) returns (DDLResponse);
+  rpc CreateStreamingTableDDL(CreateStreamingTableRequest) returns (DDLResponse);
+  rpc TableExists(TableExistsRequest) returns (TableExistsResponse);
+  rpc CreateIncrementalMergeDDL(CreateIncrementalMergeRequest) returns (DDLResponse);
+  rpc QueryCount(QueryCountRequest) returns (QueryCountResponse);
+}
+
+message Empty {}
+
+message NameResponse {
+  string name = 1;
+}
+
+message ExecRequest {
+  string sql = 1;
+}
+
+message CreateSchemaRequest {
+  string schema = 1;
+}
+
+message CreateTableRequest {
+  string schema = 1;
+  string table = 2;
+  string select_sql = 3;
+}
+
+message CreateViewRequest {
+  string schema = 1;
+  string table = 2;
+  string select_sql = 3;
+}
+
+message CreateMaterializedViewRequest {
+  string schema = 1;
+  string table = 2;
+  string select_sql = 3;
+}
+
+message CreateStreamingTableRequest {
+  string schema = 1;
+  string table = 2;
+  map<string, string> config = 3;
+}
+
+message TableExistsRequest {
+  string schema = 1;
+  string table = 2;
+}
+
+message TableExistsResponse {
+  bool exists = 1;
+}
+
+message CreateIncrementalMergeRequest {
+  string schema = 1;
+  string table = 2;
+  string select_sql = 3;
+  map<string, string> config = 4;
+}
+
+message QueryCountRequest {
+  string sql = 1;
+}
+
+message QueryCountResponse {
+  int64 count = 1;
+}
+
+message DDLResponse {
+  string ddl = 1;
+}

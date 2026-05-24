@@ -22,6 +22,7 @@ import (
 var dims []string
 var envBaseFlag string
 var modelFlag string
+var threadsFlag int
 
 func init() {
 	rootCmd.AddCommand(planCmd)
@@ -32,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(aiCmd)
 
 	applyCmd.Flags().StringVarP(&modelFlag, "model", "m", "", "Run only a specific model")
+	applyCmd.Flags().IntVarP(&threadsFlag, "threads", "t", 4, "Number of concurrent threads to use for execution")
 
 	queryCmd.Flags().StringSliceVar(&dims, "dimensions", []string{}, "Dimensions to group by (e.g., metric_date,country)")
 	rootCmd.AddCommand(queryCmd)
@@ -131,7 +133,7 @@ var applyCmd = &cobra.Command{
 		}
 
 		if !isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()) {
-			if err := plan.ApplyPlan(context.Background(), execPlan, rt.StateMgr, rt.VMgr, nil); err != nil {
+			if err := plan.ApplyPlan(context.Background(), execPlan, rt.StateMgr, rt.VMgr, rt.Parser, nil, threadsFlag); err != nil {
 				fmt.Printf("Error applying plan: %v\n", err)
 				os.Exit(1)
 			}
@@ -143,7 +145,7 @@ var applyCmd = &cobra.Command{
 
 		var applyErr error
 		go func() {
-			applyErr = plan.ApplyPlan(context.Background(), execPlan, rt.StateMgr, rt.VMgr, eventChan)
+			applyErr = plan.ApplyPlan(context.Background(), execPlan, rt.StateMgr, rt.VMgr, rt.Parser, eventChan, threadsFlag)
 			close(eventChan)
 		}()
 

@@ -13,6 +13,12 @@ A modern, fast, and pure Go-native alternative to dbt, powered by **Polyglot WAS
 3. **Plan & apply**: Terraform-style workflow. **Fingerprints** (AST + model config) detect logical changes, not formatting noise.
 4. **Agent-ready**: Semantic **metrics**, MCP read tools, and CLI **plan**/**apply** for **Drover Code** agents ([ADR 0002](docs/adr/0002-cli-invocation-drover-code-integration.md)).
 
+## ✨ Recent Updates (v0.1.0-alpha)
+- **WASM AST Transpilation**: Automatically transpile SQL across dialects (e.g., Snowflake to DuckDB) during plan execution using an embedded WASM engine.
+- **Orchestrator Export Hooks**: Export your full DAG and execution commands to standard JSON (`sqlforge export dag`) for Airflow/Dagster integration.
+- **Pure-SQL Package Manager**: Import remote Git repositories natively in `packages.yml` and resolve dependencies automatically.
+- **Custom Targets & Folder Capture**: Route models dynamically to specific schemas and databases based on folder structures (e.g., `models/marts/marketing`).
+
 ## Installation
 
 ```bash

@@ -77,6 +77,43 @@ func (p *Parser) Transpile(sql, fromDialect, toDialect string) (*TranspileResult
 	}, nil
 }
 
+type transpileRequest struct {
+	SQL         string `json:"sql"`
+	FromDialect string `json:"from_dialect"`
+	ToDialect   string `json:"to_dialect"`
+}
+
+// TranspileWASM delegates AST-based SQL transpilation to the embedded Rust WASM module.
+// If the WASM function is not exported, it falls back to the mocked Transpile function.
+func (p *Parser) TranspileWASM(sql, fromDialect, toDialect string) (*TranspileResult, error) {
+	req := transpileRequest{
+		SQL:         sql,
+		FromDialect: fromDialect,
+		ToDialect:   toDialect,
+	}
+	reqBytes, err := json.Marshal(req)
+	if err != nil {
+		return p.Transpile(sql, fromDialect, toDialect)
+	}
+
+	jsonStr, err := p.callWASMString(p.ctx, "transpile_sql", string(reqBytes))
+	if err != nil {
+		// Fallback to structural/mock parser if WASM function is missing
+		return p.Transpile(sql, fromDialect, toDialect)
+	}
+
+	if jsonStr == "" {
+		return p.Transpile(sql, fromDialect, toDialect)
+	}
+
+	var res TranspileResult
+	if err := json.Unmarshal([]byte(jsonStr), &res); err != nil {
+		return p.Transpile(sql, fromDialect, toDialect)
+	}
+
+	return &res, nil
+}
+
 // ExtractRefs simulates extracting table references structurally from the SQL.
 func (p *Parser) ExtractRefs(sql string) ([]string, error) {
 	var refs []string

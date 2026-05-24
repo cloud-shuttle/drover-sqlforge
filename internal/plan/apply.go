@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/drover-org/drover-sqlforge/internal/graph"
@@ -97,16 +98,16 @@ func loadSeeds(ctx context.Context, schema string, runner virtual.Runner) error 
 	return nil
 }
 
-func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, vMgr *virtual.Manager, eventChan chan<- ApplyEvent) error {
+func ApplyPlan(ctx context.Context, execPlan *ExecutionPlan, stateMgr *state.Manager, vMgr *virtual.Manager, p *parser.Parser, eventChan chan<- ApplyEvent, threads int) error {
 	if eventChan == nil {
-		fmt.Printf("Applying plan to environment: %s\n", p.Environment.Name)
+		fmt.Printf("Applying plan to environment: %s\n", execPlan.Environment.Name)
 	}
 
-	if err := vMgr.CreateVirtualEnv(ctx, p.Environment.Name, p.Environment.BaseEnv); err != nil {
+	if err := vMgr.CreateVirtualEnv(ctx, execPlan.Environment.Name, execPlan.Environment.BaseEnv); err != nil {
 		return fmt.Errorf("failed to create virtual env: %w", err)
 	}
 
-	schema := p.Environment.Schema // e.g. "sqlforge__peter_dev"
+	schema := execPlan.Environment.Schema // e.g. "sqlforge__peter_dev"
 
 	if vMgr.Runner().Name() == "postgres" {
 		setSearchPath := fmt.Sprintf("SET search_path TO %s, public", schema)
@@ -119,14 +120,28 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 		return fmt.Errorf("failed to load seeds: %w", err)
 	}
 
+	// Ensure all target schemas exist sequentially before parallel execution (avoids catalog write-write conflicts)
+	createdSchemas := make(map[string]bool)
+	for _, a := range append(execPlan.ChangedModels, execPlan.Impacted...) {
+		_, targetSchema, _ := resolveTarget(execPlan.Environment.Schema, a)
+		if !createdSchemas[targetSchema] {
+			if schemaDDL := vMgr.Runner().CreateSchemaDDL(targetSchema); schemaDDL != "" {
+				if err := vMgr.Exec(ctx, schemaDDL); err != nil {
+					return fmt.Errorf("failed to ensure schema %s exists: %w", targetSchema, err)
+				}
+			}
+			createdSchemas[targetSchema] = true
+		}
+	}
+
 	allModels := make(map[string]bool)
-	for _, a := range p.ChangedModels {
+	for _, a := range execPlan.ChangedModels {
 		allModels[a.Name] = true
 	}
-	for _, a := range p.Impacted {
+	for _, a := range execPlan.Impacted {
 		allModels[a.Name] = true
 	}
-	for _, a := range p.Unchanged {
+	for _, a := range execPlan.Unchanged {
 		allModels[a.Name] = true
 	}
 
@@ -142,7 +157,7 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			mat = "view"
 		}
 
-		targetDB, targetSchema, targetTable := resolveTarget(p.Environment.Schema, a)
+		targetDB, targetSchema, targetTable := resolveTarget(execPlan.Environment.Schema, a)
 		if targetDB != "" {
 			targetSchema = targetDB + "." + targetSchema
 		}
@@ -154,7 +169,7 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 				// We need the asset for the dependency to resolve its target.
 				// For now, we can search the execution plan assets for it.
 				var depAsset *model.Asset
-				for _, pA := range append(p.ChangedModels, append(p.Impacted, p.Unchanged...)...) {
+				for _, pA := range append(execPlan.ChangedModels, append(execPlan.Impacted, execPlan.Unchanged...)...) {
 					if pA.Name == dep {
 						depAsset = pA
 						break
@@ -162,18 +177,32 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 				}
 				
 				if depAsset != nil {
-					dDB, dSchema, dTable := resolveTarget(p.Environment.Schema, depAsset)
+					dDB, dSchema, dTable := resolveTarget(execPlan.Environment.Schema, depAsset)
 					if dDB != "" {
 						dSchema = dDB + "." + dSchema
 					}
 					depMap[dep] = dSchema + "." + dTable
 				} else {
 					// Fallback
-					depMap[dep] = p.Environment.Schema + "." + dep
+					depMap[dep] = execPlan.Environment.Schema + "." + dep
 				}
 			}
 		}
 		transpiledSQL := parser.ReplaceDependencies(a.SQL, depMap)
+
+		// Transpile Step: Translate SQL from source dialect to target environment dialect
+		fromDialect := a.Config["dialect"]
+		if fromDialect == "" {
+			fromDialect = "ansi" // default or get from connection
+		}
+		toDialect := vMgr.Runner().Name()
+		
+		if fromDialect != "" && fromDialect != toDialect && p != nil {
+			res, err := p.TranspileWASM(transpiledSQL, fromDialect, toDialect)
+			if err == nil && res.Error == "" {
+				transpiledSQL = res.SQL
+			}
+		}
 
 		var ddl string
 		if mat == "incremental" {
@@ -209,6 +238,7 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			ddl = vMgr.Runner().CreateViewDDL(targetSchema, targetTable, transpiledSQL)
 		}
 
+
 		// Execute the DDL against the live runner (or stub)
 		if err := vMgr.Exec(ctx, ddl); err != nil {
 			if eventChan != nil {
@@ -230,7 +260,7 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 			Fingerprint:    fp,
 			LastApplied:    time.Now(),
 			MaterializedAs: mat,
-			Environment:    p.Environment.Name,
+			Environment:    execPlan.Environment.Name,
 		}
 
 		err := stateMgr.Store.SaveModelState(modelState)
@@ -247,18 +277,101 @@ func ApplyPlan(ctx context.Context, p *ExecutionPlan, stateMgr *state.Manager, v
 		return nil
 	}
 
-	total := len(p.ChangedModels) + len(p.Impacted)
+	total := len(execPlan.ChangedModels) + len(execPlan.Impacted)
+	if total == 0 {
+		return nil
+	}
 
-	for i, a := range p.ChangedModels {
-		if err := applyModel(a, i+1, total); err != nil {
-			return err
+	// 1. Build dependency map (in-degree and out-edges)
+	inDegree := make(map[string]int)
+	outEdges := make(map[string][]string) // node -> dependents
+	planModels := make(map[string]*model.Asset)
+
+	for _, a := range append(execPlan.ChangedModels, execPlan.Impacted...) {
+		planModels[a.Name] = a
+		inDegree[a.Name] = 0 // Initialize all nodes in the plan
+	}
+
+	for _, a := range planModels {
+		for _, dep := range a.Dependencies {
+			if _, exists := planModels[dep]; exists {
+				inDegree[a.Name]++
+				outEdges[dep] = append(outEdges[dep], a.Name)
+			}
 		}
 	}
 
-	for i, a := range p.Impacted {
-		if err := applyModel(a, i+1+len(p.ChangedModels), total); err != nil {
-			return err
+	// 2. Setup Worker Pool
+	readyChan := make(chan *model.Asset, total)
+	errChan := make(chan error, total)
+	doneChan := make(chan string, total)
+
+	for name, count := range inDegree {
+		if count == 0 {
+			readyChan <- planModels[name]
 		}
+	}
+
+	workerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	if threads < 1 {
+		threads = 1
+	}
+
+	for i := 0; i < threads; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			for {
+				select {
+				case <-workerCtx.Done():
+					return
+				case a := <-readyChan:
+					if err := applyModel(a, 0, total); err != nil {
+						errChan <- err
+						return
+					}
+					doneChan <- a.Name
+				}
+			}
+		}(i)
+	}
+
+	// 3. Orchestrate
+	var mu sync.Mutex
+	completed := 0
+	var firstErr error
+
+	for completed < total {
+		select {
+		case err := <-errChan:
+			if firstErr == nil {
+				firstErr = err
+				cancel() // Stop all workers
+			}
+		case name := <-doneChan:
+			completed++
+			mu.Lock()
+			for _, dependent := range outEdges[name] {
+				inDegree[dependent]--
+				if inDegree[dependent] == 0 {
+					readyChan <- planModels[dependent]
+				}
+			}
+			mu.Unlock()
+		}
+		if firstErr != nil {
+			break
+		}
+	}
+
+	cancel() // Ensure workers shut down
+	wg.Wait() // Wait for them to finish current tasks
+
+	if firstErr != nil {
+		return firstErr
 	}
 
 	if eventChan == nil {

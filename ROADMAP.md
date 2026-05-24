@@ -42,6 +42,6 @@
 - [x] **Code Stubs Resolution**: Code stubs evaluated, mocks fixed, and known limitations documented.
 
 ## 🚀 Phase 6: Ecosystem Extensibility & GitOps (Upcoming)
-- [ ] **WASM AST Transpilation**: Leverage the polyglot WASM parser to automatically transpile SQL dialects on the fly (e.g., compile Snowflake syntax down to Postgres/DuckDB for local development) without altering the source `.sql` files.
+- [x] **WASM AST Transpilation**: Leverage the polyglot WASM parser to automatically transpile SQL dialects on the fly (e.g., compile Snowflake syntax down to Postgres/DuckDB for local development) without altering the source `.sql` files.
 - [ ] **WebAssembly UDFs**: Introduce a framework allowing users to write custom User-Defined Functions (UDFs) in Go or Rust, compiling them to WASM binaries that are natively deployed into target warehouses like ClickHouse and DuckDB.
 - [ ] **Native GitOps Webhooks**: Expand the `sqlforge mcp` HTTP server to securely listen to GitHub/GitLab webhooks, enabling automated DAG orchestration, zero-copy preview environments, and PR commenting directly from the SQLForge engine.

@@ -117,3 +117,36 @@ func ParseConfigLine(line string) (key, value string, ok bool) {
 
 	return key, value, true
 }
+
+// LoadSingularTests walks the tests directory and parses .sql files as test assets
+func LoadSingularTests(dir string, p *parser.Parser) ([]*Asset, error) {
+	var assets []*Asset
+
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return nil, nil
+	}
+
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".sql") {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+
+		asset, err := parseFile(path, relPath, p)
+		if err != nil {
+			return err
+		}
+		asset.Type = "test"
+		assets = append(assets, asset)
+		return nil
+	})
+
+	return assets, err
+}

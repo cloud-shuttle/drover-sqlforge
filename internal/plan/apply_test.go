@@ -74,7 +74,7 @@ func TestApplyPlanRouting(t *testing.T) {
 		},
 	}
 
-	err = ApplyPlan(ctx, p, stateMgr, vMgr, nil)
+	err = ApplyPlan(ctx, p, stateMgr, vMgr, nil, nil, 4)
 	if err != nil {
 		t.Fatalf("ApplyPlan failed: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestApplyPlanRouting(t *testing.T) {
 	p.ChangedModels[0].Config["materialized"] = "nats"
 	runner.LastDDL = ""
 
-	err = ApplyPlan(ctx, p, stateMgr, vMgr, nil)
+	err = ApplyPlan(ctx, p, stateMgr, vMgr, nil, nil, 4)
 	if err != nil {
 		t.Fatalf("ApplyPlan failed: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestApplyPlanRouting(t *testing.T) {
 	p.ChangedModels[0].Config["materialized"] = "materialized_view"
 	runner.LastDDL = ""
 
-	err = ApplyPlan(ctx, p, stateMgr, vMgr, nil)
+	err = ApplyPlan(ctx, p, stateMgr, vMgr, nil, nil, 4)
 	if err != nil {
 		t.Fatalf("ApplyPlan failed: %v", err)
 	}

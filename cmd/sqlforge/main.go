@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +20,7 @@ isolated environments, zero-copy isolation on supported warehouses, plan/apply w
 }
 
 func main() {
+	defer plugin.CleanupClients()
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

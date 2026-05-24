@@ -71,3 +71,46 @@ func TestLoadModelsFolderCapture(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadSingularTests(t *testing.T) {
+	tmpDir := t.TempDir()
+	testsDir := filepath.Join(tmpDir, "tests")
+	if err := os.MkdirAll(testsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	testPath := filepath.Join(testsDir, "assert_revenue_positive.sql")
+	testSQL := "-- @unique_key: test\nSELECT * FROM daily_metrics WHERE daily_revenue < 0"
+	if err := os.WriteFile(testPath, []byte(testSQL), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	p, err := parser.NewParser(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	tests, err := LoadSingularTests(testsDir, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(tests) != 1 {
+		t.Fatalf("Expected 1 singular test, got %d", len(tests))
+	}
+
+	testAsset := tests[0]
+	if testAsset.Name != "assert_revenue_positive" {
+		t.Errorf("Expected name assert_revenue_positive, got %s", testAsset.Name)
+	}
+	if testAsset.Type != "test" {
+		t.Errorf("Expected type test, got %s", testAsset.Type)
+	}
+	if testAsset.Config["unique_key"] != "test" {
+		t.Errorf("Expected unique_key test, got %s", testAsset.Config["unique_key"])
+	}
+	if len(testAsset.Dependencies) != 1 || testAsset.Dependencies[0] != "daily_metrics" {
+		t.Errorf("Expected dependency daily_metrics, got %v", testAsset.Dependencies)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/drover-org/drover-sqlforge/internal/state"
 )
@@ -142,9 +143,11 @@ func TestE2ESnapshot(t *testing.T) {
 	os.RemoveAll(stateDir)
 	defer os.RemoveAll(stateDir)
 
+	dbFile := filepath.Join(stateDir, "test_duckdb.db")
 	runCLI := func(args ...string) (string, error) {
 		cmd := exec.Command(cliPath, args...)
 		cmd.Dir = exampleDir
+		cmd.Env = append(os.Environ(), "SQLFORGE_PLUGIN_DSN="+dbFile)
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
@@ -174,6 +177,11 @@ func TestE2ESnapshot(t *testing.T) {
 	if st.Strategy != "timestamp" || st.Fingerprint == "" {
 		t.Errorf("unexpected snapshot state: %+v", st)
 	}
+
+	// Give the OS and first plugin process time to fully release the file lock on test_duckdb.db
+	time.Sleep(100 * time.Millisecond)
+	// Explicitly terminate any lingering duckdb plugin processes to ensure the database lock is freed
+	exec.Command("pkill", "-f", "sqlforge-plugin-duckdb").Run()
 
 	out, err = runCLI("snapshot", "prod", "users_snapshot")
 	if err != nil {
