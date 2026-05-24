@@ -247,7 +247,7 @@ func ApplyPlan(ctx context.Context, execPlan *ExecutionPlan, stateMgr *state.Man
 			return fmt.Errorf("failed to execute model %s: %w", a.Name, err)
 		}
 
-		if err := RunDataQualityTests(ctx, vMgr.Runner(), a, targetSchema, targetTable); err != nil {
+		if err := RunDataQualityTests(ctx, vMgr.Runner(), a, targetSchema, targetTable, execPlan); err != nil {
 			if eventChan != nil {
 				eventChan <- ApplyEvent{ModelName: a.Name, Type: EventError, Error: err}
 			}
@@ -374,6 +374,23 @@ func ApplyPlan(ctx context.Context, execPlan *ExecutionPlan, stateMgr *state.Man
 		return firstErr
 	}
 
+	// Load and run singular tests if tests directory exists
+	testsDir := "tests"
+	if _, err := os.Stat(testsDir); err == nil {
+		testAssets, err := model.LoadSingularTests(testsDir, p)
+		if err == nil && len(testAssets) > 0 {
+			if eventChan == nil {
+				fmt.Printf("Running %d singular tests...\n", len(testAssets))
+			}
+			if err := RunSingularTests(ctx, vMgr.Runner(), testAssets, execPlan, p); err != nil {
+				return err
+			}
+			if eventChan == nil {
+				fmt.Println("All singular tests passed successfully.")
+			}
+		}
+	}
+
 	if eventChan == nil {
 		fmt.Println("Apply completed successfully.")
 	}
@@ -395,7 +412,31 @@ func resolveTarget(envSchema string, a *model.Asset) (db string, schema string, 
 	return db, schema, table
 }
 
-func RunDataQualityTests(ctx context.Context, runner virtual.Runner, a *model.Asset, schema string, table string) error {
+func resolveParentTarget(envSchema string, parentModel string, execPlan *ExecutionPlan) string {
+	if execPlan == nil {
+		return envSchema + "." + parentModel
+	}
+
+	var targetAsset *model.Asset
+	for _, a := range append(execPlan.ChangedModels, append(execPlan.Impacted, execPlan.Unchanged...)...) {
+		if a.Name == parentModel {
+			targetAsset = a
+			break
+		}
+	}
+
+	if targetAsset != nil {
+		db, schema, table := resolveTarget(envSchema, targetAsset)
+		if db != "" {
+			return db + "." + schema + "." + table
+		}
+		return schema + "." + table
+	}
+
+	return envSchema + "." + parentModel
+}
+
+func RunDataQualityTests(ctx context.Context, runner virtual.Runner, a *model.Asset, schema string, table string, execPlan *ExecutionPlan) error {
 	for k, v := range a.Config {
 		if k == "test_not_null" {
 			cols := strings.Split(v, ",")
@@ -440,6 +481,82 @@ func RunDataQualityTests(ctx context.Context, runner virtual.Runner, a *model.As
 			if count > 0 {
 				return fmt.Errorf("data quality test failed: %s.%s.%s contains %d records not in accepted values (%s)", schema, table, col, count, inClause)
 			}
+		} else if strings.HasPrefix(k, "test_relationship") {
+			parts := strings.Split(v, " to ")
+			if len(parts) != 2 {
+				parts = strings.Split(v, "->")
+			}
+			if len(parts) == 2 {
+				localCol := strings.TrimSpace(parts[0])
+				parentTarget := strings.TrimSpace(parts[1])
+
+				parentParts := strings.Split(parentTarget, ".")
+				if len(parentParts) == 2 {
+					parentModel := strings.TrimSpace(parentParts[0])
+					parentCol := strings.TrimSpace(parentParts[1])
+
+					var envSchema string
+					if execPlan != nil {
+						envSchema = execPlan.Environment.Schema
+					} else {
+						envSchema = schema
+					}
+
+					parentTableFQN := resolveParentTarget(envSchema, parentModel, execPlan)
+
+					testSQL := fmt.Sprintf(
+						"SELECT COUNT(*) FROM %s.%s WHERE %s IS NOT NULL AND %s NOT IN (SELECT %s FROM %s)",
+						schema, table, localCol, localCol, parentCol, parentTableFQN,
+					)
+
+					count, err := runner.QueryCount(ctx, testSQL)
+					if err != nil {
+						return err
+					}
+					if count > 0 {
+						return fmt.Errorf("data quality test failed: relationship validation failed between %s.%s.%s and %s.%s (found %d invalid records)", schema, table, localCol, parentTableFQN, parentCol, count)
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func RunSingularTests(ctx context.Context, runner virtual.Runner, tests []*model.Asset, execPlan *ExecutionPlan, p *parser.Parser) error {
+	for _, test := range tests {
+		depMap := make(map[string]string)
+		for _, dep := range test.Dependencies {
+			var envSchema string
+			if execPlan != nil {
+				envSchema = execPlan.Environment.Schema
+			}
+			depMap[dep] = resolveParentTarget(envSchema, dep, execPlan)
+		}
+
+		transpiledSQL := parser.ReplaceDependencies(test.SQL, depMap)
+
+		fromDialect := test.Config["dialect"]
+		if fromDialect == "" {
+			fromDialect = "ansi"
+		}
+		toDialect := runner.Name()
+		if fromDialect != "" && fromDialect != toDialect && p != nil {
+			res, err := p.TranspileWASM(transpiledSQL, fromDialect, toDialect)
+			if err == nil && res.Error == "" {
+				transpiledSQL = res.SQL
+			}
+		}
+
+		testSQL := fmt.Sprintf("SELECT COUNT(*) FROM (\n%s\n) AS _test_assertion", transpiledSQL)
+
+		count, err := runner.QueryCount(ctx, testSQL)
+		if err != nil {
+			return fmt.Errorf("singular test %s failed to execute: %w", test.Name, err)
+		}
+
+		if count > 0 {
+			return fmt.Errorf("data quality test failed: singular assertion %s returned %d failing records", test.Name, count)
 		}
 	}
 	return nil
