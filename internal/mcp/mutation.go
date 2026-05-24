@@ -84,7 +84,7 @@ func applyChange(ctx context.Context, rt *project.Runtime, store *PlanStore, pla
 		}, nil
 	}
 
-	if err := plan.ApplyPlan(ctx, execPlan, rt.StateMgr, rt.VMgr, nil); err != nil {
+	if err := plan.ApplyPlan(ctx, execPlan, rt.StateMgr, rt.VMgr, rt.Parser, nil); err != nil {
 		return nil, err
 	}
 	store.Delete(planID)
