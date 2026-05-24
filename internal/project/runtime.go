@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"path/filepath"
 
@@ -58,9 +59,35 @@ func LoadRuntime(projectDir, envName string) (*Runtime, error) {
 	vMgr := virtual.NewManager(runner, stateMgr)
 
 	assets, err := model.LoadModels(filepath.Join(projectDir, "models"), p)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		p.Close()
 		return nil, fmt.Errorf("load models: %w", err)
+	}
+	if assets == nil {
+		assets = make([]*model.Asset, 0)
+	}
+
+	packagesDir := filepath.Join(projectDir, "sqlforge_packages")
+	entries, _ := os.ReadDir(packagesDir)
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pkgName := entry.Name()
+		pkgDir := filepath.Join(packagesDir, pkgName)
+		if pkgAssets, err := model.LoadModels(filepath.Join(pkgDir, "models"), p); err == nil {
+			for _, a := range pkgAssets {
+				if s, ok := a.Config["schema"]; ok && s != "" {
+					a.Config["schema"] = pkgName + "_" + s
+				} else {
+					if a.Config == nil {
+						a.Config = make(map[string]string)
+					}
+					a.Config["schema"] = pkgName
+				}
+			}
+			assets = append(assets, pkgAssets...)
+		}
 	}
 
 	baseEnv := "prod"
@@ -74,6 +101,22 @@ func LoadRuntime(projectDir, envName string) (*Runtime, error) {
 	}
 
 	semGraph, _ := semantic.LoadMetrics(projectDir)
+	
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pkgDir := filepath.Join(packagesDir, entry.Name())
+		pkgGraph, _ := semantic.LoadMetrics(pkgDir)
+		if pkgGraph != nil {
+			if semGraph == nil {
+				semGraph = pkgGraph
+			} else {
+				semGraph.Metrics = append(semGraph.Metrics, pkgGraph.Metrics...)
+			}
+		}
+	}
+
 	if semGraph != nil {
 		compiler := semantic.NewCompiler("")
 		for _, m := range semGraph.Metrics {

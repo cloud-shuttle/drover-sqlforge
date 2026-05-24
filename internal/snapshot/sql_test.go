@@ -54,12 +54,42 @@ func TestResolveConfigRequiresUniqueKey(t *testing.T) {
 	}
 }
 
-func TestResolveConfigCheckDeferred(t *testing.T) {
+func TestResolveConfigCheck(t *testing.T) {
+	cfg, err := ResolveConfig(&Definition{
+		Name:   "x",
+		Config: map[string]string{"strategy": "check", "unique_key": "id", "check_cols": "status, amount"},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error for check strategy: %v", err)
+	}
+	if len(cfg.CheckCols) != 2 || cfg.CheckCols[0] != "status" || cfg.CheckCols[1] != "amount" {
+		t.Errorf("failed to parse check_cols: %v", cfg.CheckCols)
+	}
+}
+
+func TestResolveConfigCheckRequiresCols(t *testing.T) {
 	_, err := ResolveConfig(&Definition{
 		Name:   "x",
 		Config: map[string]string{"strategy": "check", "unique_key": "id"},
 	})
-	if err == nil || !strings.Contains(err.Error(), "check") {
-		t.Fatalf("expected check strategy error, got %v", err)
+	if err == nil {
+		t.Fatal("expected error when check_cols is missing")
+	}
+}
+
+func TestBuildRunCheckIncremental(t *testing.T) {
+	stmts, err := BuildRun("postgres", "sqlforge__prod", "users_snapshot", true,
+		"SELECT 1 AS id, 'active' AS status", ResolvedConfig{Strategy: "check", UniqueKey: "id", CheckCols: []string{"status"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stmts) != 4 {
+		t.Fatalf("expected 4 statements, got %d", len(stmts))
+	}
+	if !strings.Contains(stmts[1], "UPDATE") || !strings.Contains(stmts[1], "IS DISTINCT FROM") {
+		t.Errorf("expected UPDATE with IS DISTINCT FROM, got: %s", stmts[1])
+	}
+	if !strings.Contains(stmts[2], "INSERT INTO") || !strings.Contains(stmts[2], "IS DISTINCT FROM") {
+		t.Errorf("expected INSERT with IS DISTINCT FROM, got: %s", stmts[2])
 	}
 }

@@ -20,9 +20,15 @@ var (
 )
 
 // ExtractColumnLineage derives output-column → upstream-column mappings from SELECT SQL.
-// v1 uses structural parsing (SELECT list + FROM/JOIN aliases); WASM AST enrichment is future work.
+// It attempts to use the embedded WASM module first. If the module is a stub or fails,
+// it falls back to a v1 structural parser (SELECT list + FROM/JOIN aliases).
 func (p *Parser) ExtractColumnLineage(sql string) ([]ColumnMapping, error) {
-	_ = p
+	// Attempt WASM extraction first
+	if mappings, err := p.ExtractColumnLineageWASM(sql); err == nil && mappings != nil {
+		return mappings, nil
+	}
+
+	// Fallback to v1 structural parsing
 	selectList, ok := extractSelectList(stripLineComments(sql))
 	if !ok {
 		return nil, nil

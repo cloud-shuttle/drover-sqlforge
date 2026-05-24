@@ -66,6 +66,32 @@ func TestExtractColumnLineage_simpleSelect(t *testing.T) {
 	}
 }
 
+func TestExtractColumnLineageFallback(t *testing.T) {
+	// Verify that if WASM is a stub or fails, we still get the structural output
+	sql := `SELECT u.email AS email_address FROM users u`
+	p, err := NewParser(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer p.Close()
+
+	mappings, err := p.ExtractColumnLineage(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mappings) != 1 {
+		t.Fatalf("expected 1 mapping, got %d", len(mappings))
+	}
+	
+	m := mappings[0]
+	if m.Output != "email_address" {
+		t.Errorf("expected output email_address, got %s", m.Output)
+	}
+	if len(m.Sources) != 1 || m.Sources[0].Relation != "users" || m.Sources[0].Column != "email" {
+		t.Errorf("expected users.email, got %+v", m.Sources)
+	}
+}
+
 func assertHasSource(t *testing.T, m ColumnMapping, relation, column string) {
 	t.Helper()
 	for _, s := range m.Sources {

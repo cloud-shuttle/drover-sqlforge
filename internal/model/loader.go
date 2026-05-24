@@ -22,7 +22,12 @@ func LoadModels(dir string, p *parser.Parser) ([]*Asset, error) {
 			return nil
 		}
 
-		asset, err := parseFile(path, p)
+		relPath, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+
+		asset, err := parseFile(path, relPath, p)
 		if err != nil {
 			return err
 		}
@@ -33,7 +38,7 @@ func LoadModels(dir string, p *parser.Parser) ([]*Asset, error) {
 	return assets, err
 }
 
-func parseFile(path string, p *parser.Parser) (*Asset, error) {
+func parseFile(path, relPath string, p *parser.Parser) (*Asset, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -56,6 +61,14 @@ func parseFile(path string, p *parser.Parser) (*Asset, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, err
+	}
+
+	if _, ok := config["schema"]; !ok {
+		dirPart := filepath.Dir(relPath)
+		if dirPart != "." && dirPart != "" {
+			schema := strings.ReplaceAll(dirPart, string(filepath.Separator), "_")
+			config["schema"] = schema
+		}
 	}
 
 	sql := sqlBuilder.String()

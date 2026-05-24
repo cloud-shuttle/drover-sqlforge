@@ -21,6 +21,7 @@ import (
 
 var dims []string
 var envBaseFlag string
+var modelFlag string
 
 func init() {
 	rootCmd.AddCommand(planCmd)
@@ -29,6 +30,8 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(parseCmd)
 	rootCmd.AddCommand(aiCmd)
+
+	applyCmd.Flags().StringVarP(&modelFlag, "model", "m", "", "Run only a specific model")
 
 	queryCmd.Flags().StringSliceVar(&dims, "dimensions", []string{}, "Dimensions to group by (e.g., metric_date,country)")
 	rootCmd.AddCommand(queryCmd)
@@ -104,6 +107,23 @@ var applyCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		defer rt.Close()
+
+		if modelFlag != "" {
+			var target *model.Asset
+			for _, m := range append(execPlan.ChangedModels, append(execPlan.Impacted, execPlan.Unchanged...)...) {
+				if m.Name == modelFlag {
+					target = m
+					break
+				}
+			}
+			if target == nil {
+				fmt.Printf("Error: model '%s' not found in DAG\n", modelFlag)
+				os.Exit(1)
+			}
+			execPlan.ChangedModels = []*model.Asset{target}
+			execPlan.Impacted = nil
+			execPlan.Unchanged = nil
+		}
 
 		if len(execPlan.ChangedModels) == 0 && len(execPlan.Impacted) == 0 {
 			fmt.Println("\nNothing to do. Environment is up to date.")

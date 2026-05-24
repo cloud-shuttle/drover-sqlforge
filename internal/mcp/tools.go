@@ -261,4 +261,6 @@ func (r *Registry) InitializeCoreTools(rt *project.Runtime, plans *PlanStore) {
 			return applyChange(ctx, rt, plans, args.PlanID)
 		},
 	})
+
+	r.registerSnapshotTools(rt)
 }

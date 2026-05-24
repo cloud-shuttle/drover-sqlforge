@@ -27,6 +27,9 @@ Check out the bundled example project:
 ```bash
 cd examples/agentic_retail_2026
 
+# Pull external dependencies from packages.yml
+../../sqlforge deps
+
 # Parse the models and see the DAG
 ../../sqlforge parse
 
