@@ -47,6 +47,26 @@
 - [x] **`make plugins` build target**: Compiles all five warehouse plugin binaries in a single step.
 - [x] **Core binary CGO-free**: All warehouse drivers are fully isolated in standalone gRPC plugin binaries; `sqlforge` has zero CGO dependencies.
 
+## 🎯 v0.2.0 Beta — Test Coverage & Stability (Next Milestone)
+
+Before graduating from alpha to beta, we are targeting measurable improvements to unit test coverage in the critical internal packages. These thresholds gate the beta release.
+
+| Package | Current (v0.1.0-alpha) | Target (v0.2.0-beta) |
+|---------|------------------------|----------------------|
+| `internal/plan` | 66.7% | **≥ 80%** |
+| `internal/state` | 47.5% | **≥ 60%** |
+| `internal/snapshot` | 29.9% | **≥ 50%** |
+| `internal/virtual` | 26.0% | **≥ 40%** |
+
+Coverage targets are enforced by the quality gate (`make quality-gate` / CI `quality-gate` job).
+
+Additional v0.2.0 scope:
+- [ ] Reference docs: `docs/reference/sqlforge-yml.md` and `docs/reference/model-config.md`
+- [ ] `sqlforge plugin install` — download pre-compiled plugin binaries for the current platform
+- [ ] `docs/reference/mcp-tools.md` — full parameter/response schemas for all MCP tools
+
+---
+
 ## 🚀 Phase 6: Ecosystem Extensibility & GitOps (Upcoming)
 - [ ] **WebAssembly UDFs**: Introduce a framework allowing users to write custom User-Defined Functions (UDFs) in Go or Rust, compiling them to WASM binaries that are natively deployed into target warehouses like ClickHouse and DuckDB.
 - [ ] **Native GitOps Webhooks**: Expand the `sqlforge mcp` HTTP server to securely listen to GitHub/GitLab webhooks, enabling automated DAG orchestration, zero-copy preview environments, and PR commenting directly from the SQLForge engine.

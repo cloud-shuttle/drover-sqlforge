@@ -1,5 +1,10 @@
 # Drover SQLForge 🚀 (v0.1.0-alpha)
 
+[![CI](https://github.com/drover-org/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/drover-org/drover-sqlforge/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
+[![Status](https://img.shields.io/badge/status-alpha-orange)](ROADMAP.md)
+
 > Part of the [Drover Ecosystem](../DROVER_ECOSYSTEM.md) — Orchestrating Autonomous Agentic Engineering
 
 **SQLForge** is a modern, pure Go-native alternative to dbt. It replaces Jinja templating with **compile-time AST analysis** via an embedded Polyglot WASM engine, giving you repeatable, agent-friendly data transformations across every major SQL warehouse.
