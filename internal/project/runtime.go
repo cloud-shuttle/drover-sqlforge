@@ -2,9 +2,10 @@ package project
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
-
 	"path/filepath"
 
 	"github.com/drover-org/drover-sqlforge/internal/config"
@@ -29,7 +30,78 @@ type Runtime struct {
 	Semantic   *semantic.Graph
 }
 
-// LoadRuntime loads config, parser, models, DAG, and environment for projectDir.
+// RuntimeDeps holds already-constructed components for a data project.
+// All fields are optional: nil Parser skips WASM paths (DDL-only), nil
+// Semantic means the project has no metrics, nil Assets is treated as empty.
+// The only required field is Env — callers must resolve the environment before
+// calling NewRuntime so that unit tests control the schema name directly.
+type RuntimeDeps struct {
+	Parser   *parser.Parser
+	StateMgr *state.Manager
+	Runner   virtual.Runner
+	Assets   []*model.Asset
+	Semantic *semantic.Graph
+	Env      *state.Environment
+}
+
+// NewRuntime builds a Runtime from pre-constructed dependencies.
+// It is the testable core of project loading: no file I/O, no WASM
+// initialisation, no SQLite open — those happen in LoadRuntime (the
+// production wiring path) before calling this function.
+//
+// NewRuntime's only non-trivial work is building the model DAG from
+// deps.Assets and injecting any materialised semantic derived models.
+func NewRuntime(projectDir string, deps RuntimeDeps) (*Runtime, error) {
+	assets := deps.Assets
+	if assets == nil {
+		assets = make([]*model.Asset, 0)
+	}
+
+	// Inject derived models for materialised metrics into the asset list
+	// before DAG construction so the planner treats them as first-class models.
+	if deps.Semantic != nil {
+		compiler := semantic.NewCompiler("")
+		for _, m := range deps.Semantic.Metrics {
+			if m.Materialize {
+				sql, err := compiler.Compile(&m, m.Dimensions)
+				if err == nil {
+					assets = append(assets, &model.Asset{
+						Name:         "semantic__" + m.Name,
+						SQL:          sql,
+						Config:       map[string]string{"materialized": "view"},
+						Dependencies: []string{m.Model},
+					})
+				}
+			}
+		}
+	}
+
+	dag := graph.NewDAG()
+	if err := dag.Build(assets); err != nil {
+		return nil, fmt.Errorf("dag: %w", err)
+	}
+
+	var vMgr *virtual.Manager
+	if deps.StateMgr != nil && deps.Runner != nil {
+		vMgr = virtual.NewManager(deps.Runner, deps.StateMgr)
+	}
+
+	return &Runtime{
+		ProjectDir: projectDir,
+		Parser:     deps.Parser,
+		StateMgr:   deps.StateMgr,
+		VMgr:       vMgr,
+		Env:        deps.Env,
+		Assets:     assets,
+		DAG:        dag,
+		Semantic:   deps.Semantic,
+	}, nil
+}
+
+// LoadRuntime is the production entry point. It performs all I/O (WASM init,
+// SQLite open, config read, disk model scan, environment resolution) and then
+// delegates to NewRuntime. The signature is unchanged; all existing CLI callers
+// continue to work without modification.
 func LoadRuntime(projectDir, envName string) (*Runtime, error) {
 	ctx := context.Background()
 
@@ -56,8 +128,6 @@ func LoadRuntime(projectDir, envName string) (*Runtime, error) {
 		}
 	}
 
-	vMgr := virtual.NewManager(runner, stateMgr)
-
 	assets, err := model.LoadModels(filepath.Join(projectDir, "models"), p)
 	if err != nil && !os.IsNotExist(err) {
 		p.Close()
@@ -67,6 +137,7 @@ func LoadRuntime(projectDir, envName string) (*Runtime, error) {
 		assets = make([]*model.Asset, 0)
 	}
 
+	// Load package models and apply the schema-prefix naming policy.
 	packagesDir := filepath.Join(projectDir, "sqlforge_packages")
 	entries, _ := os.ReadDir(packagesDir)
 	for _, entry := range entries {
@@ -100,14 +171,24 @@ func LoadRuntime(projectDir, envName string) (*Runtime, error) {
 		return nil, fmt.Errorf("environment: %w", err)
 	}
 
-	semGraph, _ := semantic.LoadMetrics(projectDir)
-	
+	// Load project metrics — distinguish "no file" (valid) from parse errors.
+	semGraph, err := loadMetricsStrict(projectDir)
+	if err != nil {
+		p.Close()
+		return nil, fmt.Errorf("metrics: %w", err)
+	}
+
+	// Merge package metrics with the same error discipline.
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
 		pkgDir := filepath.Join(packagesDir, entry.Name())
-		pkgGraph, _ := semantic.LoadMetrics(pkgDir)
+		pkgGraph, err := loadMetricsStrict(pkgDir)
+		if err != nil {
+			p.Close()
+			return nil, fmt.Errorf("package metrics (%s): %w", entry.Name(), err)
+		}
 		if pkgGraph != nil {
 			if semGraph == nil {
 				semGraph = pkgGraph
@@ -117,39 +198,37 @@ func LoadRuntime(projectDir, envName string) (*Runtime, error) {
 		}
 	}
 
-	if semGraph != nil {
-		compiler := semantic.NewCompiler("")
-		for _, m := range semGraph.Metrics {
-			if m.Materialize {
-				sql, err := compiler.Compile(&m, m.Dimensions)
-				if err == nil {
-					assets = append(assets, &model.Asset{
-						Name:         "semantic__" + m.Name,
-						SQL:          sql,
-						Config:       map[string]string{"materialized": "view"},
-						Dependencies: []string{m.Model},
-					})
-				}
-			}
-		}
-	}
-
-	dag := graph.NewDAG()
-	if err := dag.Build(assets); err != nil {
+	rt, err := NewRuntime(projectDir, RuntimeDeps{
+		Parser:   p,
+		StateMgr: stateMgr,
+		Runner:   runner,
+		Assets:   assets,
+		Semantic: semGraph,
+		Env:      env,
+	})
+	if err != nil {
 		p.Close()
-		return nil, fmt.Errorf("dag: %w", err)
+		return nil, err
 	}
+	return rt, nil
+}
 
-	return &Runtime{
-		ProjectDir: projectDir,
-		Parser:     p,
-		StateMgr:   stateMgr,
-		VMgr:       vMgr,
-		Env:        env,
-		Assets:     assets,
-		DAG:        dag,
-		Semantic:   semGraph,
-	}, nil
+// loadMetricsStrict wraps semantic.LoadMetrics and translates "no semantic
+// directory" into (nil, nil) rather than an error, while still propagating
+// genuine YAML parse errors.
+func loadMetricsStrict(dir string) (*semantic.Graph, error) {
+	g, err := semantic.LoadMetrics(dir)
+	if err != nil {
+		// filepath.Glob does not return IsNotExist, but os.ReadFile can.
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err // real parse error — surface it
+	}
+	if len(g.Metrics) == 0 {
+		return nil, nil // no metrics defined — valid state
+	}
+	return g, nil
 }
 
 func (r *Runtime) Close() {
