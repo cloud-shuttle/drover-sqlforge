@@ -1,6 +1,6 @@
 ---
 title: gRPC plugin architecture for virtual runners
-description: Design for migrating SQLForge virtual runners to a gRPC plugin model.
+description: How SQLForge warehouse drivers work as standalone gRPC plugin binaries.
 product: drover-sqlforge
 audience: platform-operator
 doc_type: explanation
@@ -10,79 +10,134 @@ topics:
 surface: repo-docs
 ---
 
-# Migrating Virtual Runners to a gRPC Plugin Architecture
+# gRPC Plugin Architecture for Virtual Runners
 
-As SQLForge approaches v1.0 and expands its footprint to support numerous dialects (Snowflake, BigQuery, Postgres, DuckDB, Databricks), embedding all dialect-specific drivers directly into the core `sqlforge` binary via `go.mod` is an unsustainable anti-pattern. 
+The core `sqlforge` binary is **CGO-free and has no warehouse drivers**. All database connectivity is handled by standalone **gRPC plugin binaries** (`sqlforge-plugin-<dialect>`) that are spawned on demand via [HashiCorp `go-plugin`](https://github.com/hashicorp/go-plugin).
 
-It leads to:
-1. **Massive Binary Bloat:** Every driver adds megabytes to the binary.
-2. **CGO Nightmares:** Drivers like `go-duckdb` rely on C-bindings, breaking simple cross-compilation and demanding local C++ compilers.
-3. **Dependency Hell:** Conflicting module versions between distinct drivers.
+This design solves three fundamental problems with the alternative monolithic approach:
 
-To cleanly support a massive ecosystem of dialects, SQLForge will migrate the `virtual.Runner` interface to a **gRPC Plugin Architecture** using HashiCorp's `go-plugin`.
+1. **Binary bloat** — every driver adds megabytes. DuckDB's CGO library alone is ~60 MB.
+2. **CGO hell** — drivers like `go-duckdb` require a local C++ compiler and break simple cross-compilation.
+3. **Dependency conflicts** — distinct driver packages routinely pin incompatible transitive dependencies.
 
-## The Architecture
+---
 
-Under the new model, the core SQLForge executable becomes a lightweight orchestrator. It manages the CLI, state, Polyglot WASM parser, and DAG generation. It completely drops `database/sql` dependencies.
+## How It Works
 
-When a user specifies `dialect: snowflake` in their `sqlforge.yml`, the engine will:
-1. Look for an executable named `sqlforge-runner-snowflake` in the system path or `.sqlforge/plugins/`.
-2. Spawn the executable as a background process.
-3. Establish a gRPC connection over a local unix socket.
-4. Issue DDL commands and validation queries over the network boundary.
+When `sqlforge plan prod` (or `apply`, `test`, etc.) is invoked:
 
-### The Protobuf Interface
+```
+sqlforge plan prod
+  └─ internal/virtual/runner_factory.go
+      └─ loadRunnerPlugin("clickhouse", dsn)
+          ├─ resolves binary: sqlforge-plugin-clickhouse (PATH or same dir)
+          ├─ spawns subprocess (os/exec)
+          ├─ establishes gRPC over unix socket
+          └─ returns virtual.Runner — identical interface to any in-process runner
+```
 
-The current Go interface `virtual.Runner` will be converted into a `Runner` Protobuf service:
+The factory (`internal/virtual/runner_factory.go`) uses `SQLFORGE_PLUGIN_DSN` to pass the warehouse connection string to the child process. All DDL generation, query execution, and schema introspection flows over the gRPC boundary.
 
-```protobuf
-syntax = "proto3";
-package runner;
+---
 
-service RunnerPlugin {
-  rpc Init(InitRequest) returns (InitResponse);
-  
-  // Execution
-  rpc Exec(ExecRequest) returns (ExecResponse);
-  rpc QueryCount(QueryCountRequest) returns (QueryCountResponse);
-  
-  // DDL Generation
-  rpc CreateSchemaDDL(CreateSchemaRequest) returns (DDLResponse);
-  rpc CreateTableDDL(CreateTableRequest) returns (DDLResponse);
-  rpc CreateViewDDL(CreateViewRequest) returns (DDLResponse);
-  rpc CreateIncrementalMergeDDL(CreateMergeRequest) returns (DDLResponse);
+## Plugin Binary Map
+
+| Dialect | Binary | Driver | Notes |
+|---------|--------|--------|-------|
+| `clickhouse` | built-in | `clickhouse-go/v2` | In-process (no CGO) |
+| `duckdb` | `sqlforge-plugin-duckdb` | `go-duckdb` (CGO) | CGO isolated in plugin |
+| `snowflake` | `sqlforge-plugin-snowflake` | `gosnowflake` | — |
+| `databricks` | `sqlforge-plugin-databricks` | `databricks-sql-go` | — |
+| `postgres` | `sqlforge-plugin-postgres` | `lib/pq` | — |
+| `doris` | `sqlforge-plugin-doris` | `go-sql-driver/mysql` | MySQL wire protocol |
+| `velodb` | `sqlforge-plugin-velodb` | `go-sql-driver/mysql` | MySQL wire protocol (SelectDB fork) |
+
+---
+
+## The `virtual.Runner` Interface
+
+All plugins implement the same Go interface:
+
+```go
+type Runner interface {
+    Name() string
+    Exec(ctx context.Context, query string) error
+    QueryCount(ctx context.Context, sql string) (int, error)
+    QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error)
+    TableExists(ctx context.Context, schema, table string) (bool, error)
+
+    // DDL generators — return dialect-specific SQL strings
+    CreateSchemaDDL(schema string) string
+    CreateTableDDL(schema, table, selectSQL string) string
+    CreateViewDDL(schema, table, selectSQL string) string
+    CreateMaterializedViewDDL(schema, table, selectSQL string) string
+    CreateStreamingTableDDL(schema, table string, config map[string]string) string
+    CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string
 }
 ```
 
-### Implementing a Dialect Plugin
+The protobuf service and gRPC client/server wrappers live in `internal/virtual/proto/` and `internal/virtual/runner_grpc.go`.
 
-To add support for a new database (e.g., DuckDB), a contributor will create a *separate GitHub repository* (e.g., `drover-org/sqlforge-runner-duckdb`).
+---
 
-This repository will import `github.com/hashicorp/go-plugin` and serve the gRPC endpoints. Because it is an isolated binary, it can safely import `github.com/marcboeker/go-duckdb` and compile with CGO without poisoning the core SQLForge project. 
+## Writing a New Plugin
+
+To add support for a new warehouse (e.g., BigQuery):
+
+1. Create `cmd/plugins/sqlforge-plugin-bigquery/main.go`.
+2. Implement all methods of `virtual.Runner` using the appropriate Go driver.
+3. Call `plugin.Serve` with `virtual.Handshake` and `virtual.RunnerGRPCPlugin`:
 
 ```go
-// Example Plugin Entrypoint
 func main() {
+    dsn := os.Getenv("SQLFORGE_PLUGIN_DSN")
+
+    // Connect using your driver
+    db, err := sql.Open("bigquery", dsn)
+    ...
+
+    runner := &BigQueryRunner{db: db}
+
     plugin.Serve(&plugin.ServeConfig{
-        HandshakeConfig: shared.Handshake,
+        HandshakeConfig: virtual.Handshake,
         Plugins: map[string]plugin.Plugin{
-            "runner": &shared.RunnerGRPCPlugin{Impl: &DuckDBRunner{}},
+            "runner": &virtual.RunnerGRPCPlugin{Impl: runner},
         },
         GRPCServer: plugin.DefaultGRPCServer,
     })
 }
 ```
 
-### Distribution
+4. Add a build rule to the `Makefile` `plugins` target.
+5. Implement DDL helpers using `virtual.BuildIncrementalMergeDDL` for incremental strategies.
 
-Instead of shipping a monolithic binary, SQLForge will adopt a package-manager approach. Users will run:
+Because it is an isolated binary, your plugin can freely import CGO-based or platform-specific drivers without affecting the core `sqlforge` binary.
+
+---
+
+## Building All Plugins
+
 ```bash
-sqlforge plugin install snowflake
+make plugins
 ```
-Which downloads the compiled `sqlforge-runner-snowflake` binary for their architecture.
 
-## Roadmap for v1.0
-1. Define the `.proto` schema in `internal/plugin/proto`.
-2. Implement the `go-plugin` client in `internal/virtual/manager.go`.
-3. Extract `ClickHouseRunner` into its own repository: `sqlforge-runner-clickhouse`.
-4. Remove `database/sql` from the core project.
+This compiles all plugin binaries to the repo root so they are co-located with the `sqlforge` binary:
+
+```
+./sqlforge
+./sqlforge-plugin-duckdb
+./sqlforge-plugin-snowflake
+./sqlforge-plugin-databricks
+./sqlforge-plugin-doris
+./sqlforge-plugin-velodb
+```
+
+---
+
+## Future: `sqlforge plugin install`
+
+Phase 6 will introduce a package manager sub-command that downloads pre-compiled plugin binaries for the current platform from GitHub Releases:
+
+```bash
+sqlforge plugin install bigquery
+```
