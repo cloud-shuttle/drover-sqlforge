@@ -6,6 +6,25 @@
 
 ---
 
+## Quickstart (60 seconds)
+
+```bash
+# 1. Clone and build
+git clone https://github.com/drover-org/drover-sqlforge.git
+cd drover-sqlforge && make build && make plugins
+
+# 2. Run against the bundled example (DuckDB in-memory, no server needed)
+cd examples/agentic_retail_2026
+../../sqlforge plan prod      # preview what will be built
+../../sqlforge apply prod     # execute it
+```
+
+That's it. Eight models built, quality tests run, fingerprints saved.
+
+➡️ **Continue with [Tutorial: Your First SQLForge Project](docs/tutorials/01-getting-started.md)** for a step-by-step walkthrough.
+
+---
+
 ## Why SQLForge?
 
 | | dbt | SQLMesh | **SQLForge** |
