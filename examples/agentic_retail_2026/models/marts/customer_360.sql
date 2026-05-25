@@ -2,6 +2,7 @@
 -- @environment: virtual
 -- @grain: user_id
 -- @description: Unified customer profile with behavioral features for AI agents
+-- @test_relationship: user_id to stg_users.user_id
 
 SELECT 
     u.user_id,

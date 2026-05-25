@@ -42,7 +42,7 @@ func GenerateDAGExport(envName string, envSchema string, assets []*model.Asset, 
 			mat = "view"
 		}
 
-		db, schema, _ := resolveTarget(envSchema, a)
+		db, schema, _ := ResolveTarget(envSchema, a)
 
 		node := ExportNode{
 			Name:         a.Name,

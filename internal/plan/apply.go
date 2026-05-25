@@ -123,7 +123,7 @@ func ApplyPlan(ctx context.Context, execPlan *ExecutionPlan, stateMgr *state.Man
 	// Ensure all target schemas exist sequentially before parallel execution (avoids catalog write-write conflicts)
 	createdSchemas := make(map[string]bool)
 	for _, a := range append(execPlan.ChangedModels, execPlan.Impacted...) {
-		_, targetSchema, _ := resolveTarget(execPlan.Environment.Schema, a)
+		_, targetSchema, _ := ResolveTarget(execPlan.Environment.Schema, a)
 		if !createdSchemas[targetSchema] {
 			if schemaDDL := vMgr.Runner().CreateSchemaDDL(targetSchema); schemaDDL != "" {
 				if err := vMgr.Exec(ctx, schemaDDL); err != nil {
@@ -157,7 +157,7 @@ func ApplyPlan(ctx context.Context, execPlan *ExecutionPlan, stateMgr *state.Man
 			mat = "view"
 		}
 
-		targetDB, targetSchema, targetTable := resolveTarget(execPlan.Environment.Schema, a)
+		targetDB, targetSchema, targetTable := ResolveTarget(execPlan.Environment.Schema, a)
 		if targetDB != "" {
 			targetSchema = targetDB + "." + targetSchema
 		}
@@ -177,7 +177,7 @@ func ApplyPlan(ctx context.Context, execPlan *ExecutionPlan, stateMgr *state.Man
 				}
 				
 				if depAsset != nil {
-					dDB, dSchema, dTable := resolveTarget(execPlan.Environment.Schema, depAsset)
+					dDB, dSchema, dTable := ResolveTarget(execPlan.Environment.Schema, depAsset)
 					if dDB != "" {
 						dSchema = dDB + "." + dSchema
 					}
@@ -397,7 +397,7 @@ func ApplyPlan(ctx context.Context, execPlan *ExecutionPlan, stateMgr *state.Man
 	return nil
 }
 
-func resolveTarget(envSchema string, a *model.Asset) (db string, schema string, table string) {
+func ResolveTarget(envSchema string, a *model.Asset) (db string, schema string, table string) {
 	db = a.Config["database"]
 	
 	schema = envSchema
@@ -412,7 +412,7 @@ func resolveTarget(envSchema string, a *model.Asset) (db string, schema string, 
 	return db, schema, table
 }
 
-func resolveParentTarget(envSchema string, parentModel string, execPlan *ExecutionPlan) string {
+func ResolveParentTarget(envSchema string, parentModel string, execPlan *ExecutionPlan) string {
 	if execPlan == nil {
 		return envSchema + "." + parentModel
 	}
@@ -426,7 +426,7 @@ func resolveParentTarget(envSchema string, parentModel string, execPlan *Executi
 	}
 
 	if targetAsset != nil {
-		db, schema, table := resolveTarget(envSchema, targetAsset)
+		db, schema, table := ResolveTarget(envSchema, targetAsset)
 		if db != "" {
 			return db + "." + schema + "." + table
 		}
@@ -502,7 +502,7 @@ func RunDataQualityTests(ctx context.Context, runner virtual.Runner, a *model.As
 						envSchema = schema
 					}
 
-					parentTableFQN := resolveParentTarget(envSchema, parentModel, execPlan)
+					parentTableFQN := ResolveParentTarget(envSchema, parentModel, execPlan)
 
 					testSQL := fmt.Sprintf(
 						"SELECT COUNT(*) FROM %s.%s WHERE %s IS NOT NULL AND %s NOT IN (SELECT %s FROM %s)",
@@ -531,7 +531,7 @@ func RunSingularTests(ctx context.Context, runner virtual.Runner, tests []*model
 			if execPlan != nil {
 				envSchema = execPlan.Environment.Schema
 			}
-			depMap[dep] = resolveParentTarget(envSchema, dep, execPlan)
+			depMap[dep] = ResolveParentTarget(envSchema, dep, execPlan)
 		}
 
 		transpiledSQL := parser.ReplaceDependencies(test.SQL, depMap)
@@ -548,7 +548,12 @@ func RunSingularTests(ctx context.Context, runner virtual.Runner, tests []*model
 			}
 		}
 
-		testSQL := fmt.Sprintf("SELECT COUNT(*) FROM (\n%s\n) AS _test_assertion", transpiledSQL)
+		sqlToNest := strings.TrimSpace(transpiledSQL)
+		if strings.HasSuffix(sqlToNest, ";") {
+			sqlToNest = strings.TrimSuffix(sqlToNest, ";")
+		}
+
+		testSQL := fmt.Sprintf("SELECT COUNT(*) FROM (\n%s\n) AS _test_assertion", sqlToNest)
 
 		count, err := runner.QueryCount(ctx, testSQL)
 		if err != nil {

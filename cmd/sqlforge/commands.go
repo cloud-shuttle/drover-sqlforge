@@ -7,6 +7,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"os"
+	"strings"
 
 	"github.com/drover-org/drover-sqlforge/internal/ai"
 	"github.com/drover-org/drover-sqlforge/internal/config"
@@ -31,6 +32,7 @@ func init() {
 	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(parseCmd)
 	rootCmd.AddCommand(aiCmd)
+	rootCmd.AddCommand(testCmd)
 
 	applyCmd.Flags().StringVarP(&modelFlag, "model", "m", "", "Run only a specific model")
 	applyCmd.Flags().IntVarP(&threadsFlag, "threads", "t", 4, "Number of concurrent threads to use for execution")
@@ -347,5 +349,202 @@ var aiCmd = &cobra.Command{
 		}
 
 		fmt.Printf("\n--- Explanation for %s ---\n\n%s\n", targetModel.Name, explanation)
+	},
+}
+
+var testCmd = &cobra.Command{
+	Use:   "test [environment]",
+	Short: "Execute all data quality tests (column, relationship, and singular)",
+	Run: func(cmd *cobra.Command, args []string) {
+		envName := "dev"
+		if len(args) > 0 {
+			envName = args[0]
+		}
+
+		fmt.Printf("Running data quality tests for environment: %s\n", envName)
+		rt, err := loadRuntime(envName)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		defer rt.Close()
+
+		execPlan, err := rt.ExecutionPlan()
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		schema := execPlan.Environment.Schema
+		runner := rt.VMgr.Runner()
+		ctx := context.Background()
+
+		var failed int
+		var passed int
+
+		allModels := append(execPlan.ChangedModels, append(execPlan.Impacted, execPlan.Unchanged...)...)
+
+		fmt.Println("\nRunning model column & relationship tests:")
+		for _, a := range allModels {
+			_, targetSchema, targetTable := plan.ResolveTarget(schema, a)
+
+			for k, v := range a.Config {
+				if k == "test_not_null" {
+					cols := strings.Split(v, ",")
+					for _, col := range cols {
+						col = strings.TrimSpace(col)
+						testSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE %s IS NULL", targetSchema, targetTable, col)
+						count, err := runner.QueryCount(ctx, testSQL)
+						if err == nil && count == 0 {
+							passed++
+							fmt.Printf("  %s.%s (not_null) ....... \x1b[32mPASS\x1b[0m\n", a.Name, col)
+						} else {
+							failed++
+							var errStr string
+							if err != nil {
+								errStr = err.Error()
+							} else {
+								errStr = fmt.Sprintf("found %d null records", count)
+							}
+							fmt.Printf("  %s.%s (not_null) ....... \x1b[31mFAIL\x1b[0m (%s)\n", a.Name, col, errStr)
+						}
+					}
+				} else if k == "test_unique" {
+					cols := strings.Split(v, ",")
+					for _, col := range cols {
+						col = strings.TrimSpace(col)
+						testSQL := fmt.Sprintf("SELECT COUNT(*) FROM (SELECT %s, COUNT(*) as _c FROM %s.%s GROUP BY %s HAVING _c > 1)", col, targetSchema, targetTable, col)
+						count, err := runner.QueryCount(ctx, testSQL)
+						if err == nil && count == 0 {
+							passed++
+							fmt.Printf("  %s.%s (unique) ......... \x1b[32mPASS\x1b[0m\n", a.Name, col)
+						} else {
+							failed++
+							var errStr string
+							if err != nil {
+								errStr = err.Error()
+							} else {
+								errStr = fmt.Sprintf("found %d duplicate records", count)
+							}
+							fmt.Printf("  %s.%s (unique) ......... \x1b[31mFAIL\x1b[0m (%s)\n", a.Name, col, errStr)
+						}
+					}
+				} else if strings.HasPrefix(k, "test_accepted_values_") {
+					col := strings.TrimPrefix(k, "test_accepted_values_")
+					vals := strings.Split(v, ",")
+					var quotedVals []string
+					for _, val := range vals {
+						val = strings.TrimSpace(val)
+						quotedVals = append(quotedVals, fmt.Sprintf("'%s'", val))
+					}
+					inClause := strings.Join(quotedVals, ", ")
+					testSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE %s NOT IN (%s)", targetSchema, targetTable, col, inClause)
+					count, err := runner.QueryCount(ctx, testSQL)
+					if err == nil && count == 0 {
+						passed++
+						fmt.Printf("  %s.%s (accepted_values)  \x1b[32mPASS\x1b[0m\n", a.Name, col)
+					} else {
+						failed++
+						var errStr string
+						if err != nil {
+							errStr = err.Error()
+						} else {
+							errStr = fmt.Sprintf("found %d invalid values", count)
+						}
+						fmt.Printf("  %s.%s (accepted_values)  \x1b[31mFAIL\x1b[0m (%s)\n", a.Name, col, errStr)
+					}
+				} else if strings.HasPrefix(k, "test_relationship") {
+					parts := strings.Split(v, " to ")
+					if len(parts) != 2 {
+						parts = strings.Split(v, "->")
+					}
+					if len(parts) == 2 {
+						localCol := strings.TrimSpace(parts[0])
+						parentTarget := strings.TrimSpace(parts[1])
+
+						parentParts := strings.Split(parentTarget, ".")
+						if len(parentParts) == 2 {
+							parentModel := strings.TrimSpace(parentParts[0])
+							parentCol := strings.TrimSpace(parentParts[1])
+
+							parentTableFQN := plan.ResolveParentTarget(schema, parentModel, execPlan)
+							testSQL := fmt.Sprintf(
+								"SELECT COUNT(*) FROM %s.%s WHERE %s IS NOT NULL AND %s NOT IN (SELECT %s FROM %s)",
+								targetSchema, targetTable, localCol, localCol, parentCol, parentTableFQN,
+							)
+
+							count, err := runner.QueryCount(ctx, testSQL)
+							if err == nil && count == 0 {
+								passed++
+								fmt.Printf("  %s.%s (relationship) ... \x1b[32mPASS\x1b[0m (referenced %s.%s)\n", a.Name, localCol, parentModel, parentCol)
+							} else {
+								failed++
+								var errStr string
+								if err != nil {
+									errStr = err.Error()
+								} else {
+									errStr = fmt.Sprintf("found %d invalid referenced values", count)
+								}
+								fmt.Printf("  %s.%s (relationship) ... \x1b[31mFAIL\x1b[0m (%s)\n", a.Name, localCol, errStr)
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Singular tests
+		testsDir := "tests"
+		if _, err := os.Stat(testsDir); err == nil {
+			testAssets, err := model.LoadSingularTests(testsDir, rt.Parser)
+			if err == nil && len(testAssets) > 0 {
+				fmt.Println("\nRunning custom singular assertion tests:")
+				for _, test := range testAssets {
+					depMap := make(map[string]string)
+					for _, dep := range test.Dependencies {
+						depMap[dep] = plan.ResolveParentTarget(schema, dep, execPlan)
+					}
+
+					transpiledSQL := parser.ReplaceDependencies(test.SQL, depMap)
+					fromDialect := test.Config["dialect"]
+					if fromDialect == "" {
+						fromDialect = "ansi"
+					}
+					toDialect := runner.Name()
+					if fromDialect != "" && fromDialect != toDialect && rt.Parser != nil {
+						res, err := rt.Parser.TranspileWASM(transpiledSQL, fromDialect, toDialect)
+						if err == nil && res.Error == "" {
+							transpiledSQL = res.SQL
+						}
+					}
+
+					sqlToNest := strings.TrimSpace(transpiledSQL)
+					if strings.HasSuffix(sqlToNest, ";") {
+						sqlToNest = strings.TrimSuffix(sqlToNest, ";")
+					}
+
+					testSQL := fmt.Sprintf("SELECT COUNT(*) FROM (\n%s\n) AS _test_assertion", sqlToNest)
+					count, err := runner.QueryCount(ctx, testSQL)
+					if err == nil && count == 0 {
+						passed++
+						fmt.Printf("  %s ............ \x1b[32mPASS\x1b[0m\n", test.Name)
+					} else {
+						failed++
+						var errStr string
+						if err != nil {
+							errStr = err.Error()
+						} else {
+							errStr = fmt.Sprintf("returned %d failing records", count)
+						}
+						fmt.Printf("  %s ............ \x1b[31mFAIL\x1b[0m (%s)\n", test.Name, errStr)
+					}
+				}
+			}
+		}
+
+		fmt.Printf("\nTest execution completed: %d passed, %d failed.\n", passed, failed)
+		if failed > 0 {
+			os.Exit(1)
+		}
 	},
 }

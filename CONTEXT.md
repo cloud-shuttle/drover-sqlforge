@@ -112,7 +112,7 @@ The `materialized` entry in **model config**: how **apply** builds or updates th
 The **materialization strategy** last recorded in state for a **model** in an **environment** after a successful **apply**. Usually matches the configured strategy; **incremental** may differ on first run (create table vs merge).
 
 **Data quality assertion**  
-A warehouse check declared in **model config** (`test_not_null`, `test_unique`, `test_accepted_values_{column}`) and executed during **apply** immediately after DDL. A failed assertion aborts **apply**. Distinct from Go unit **tests** in the SQLForge repository.
+A warehouse check declared in **model config** (`test_not_null`, `test_unique`, `test_accepted_values_{column}`, `test_relationship`) or defined as custom SQL assertions in the `tests/` directory (Singular Tests) and executed during **apply** immediately after DDL (for model assertions) or at the end of DAG execution (for singular tests). A failed assertion aborts **apply**. CLI command: `sqlforge test [environment]`. Distinct from Go unit **tests** in the SQLForge repository.
 
 ## Incremental models
 
