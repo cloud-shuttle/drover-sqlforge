@@ -283,3 +283,59 @@ func TestE2ELineage(t *testing.T) {
 		t.Errorf("expected column lineage edge, got: %s", out)
 	}
 }
+
+func TestE2EDocsGenerate(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get wd: %v", err)
+	}
+	projectRoot := filepath.Join(cwd, "..", "..")
+	cliPath := filepath.Join(projectRoot, "sqlforge")
+	if _, err := os.Stat(cliPath); os.IsNotExist(err) {
+		t.Fatalf("sqlforge binary not found at %s. Run 'make e2e' first.", cliPath)
+	}
+
+	exampleDir := filepath.Join(projectRoot, "examples", "agentic_retail_2026")
+	
+	// Clean target directory
+	targetDir := filepath.Join(exampleDir, "target")
+	os.RemoveAll(targetDir)
+	defer os.RemoveAll(targetDir)
+
+	runCLI := func(args ...string) (string, error) {
+		cmd := exec.Command(cliPath, args...)
+		cmd.Dir = exampleDir
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		err := cmd.Run()
+		return out.String(), err
+	}
+
+	out, err := runCLI("docs", "generate", "prod")
+	if err != nil {
+		t.Fatalf("docs generate prod failed: %v\n%s", err, out)
+	}
+
+	if !strings.Contains(out, "Static Data Catalog generated successfully") {
+		t.Errorf("expected success confirmation message, got: %s", out)
+	}
+
+	outputPath := filepath.Join(targetDir, "index.html")
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		t.Fatalf("static documentation catalog not found at target/index.html")
+	}
+
+	htmlContent, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("failed to read target/index.html: %v", err)
+	}
+
+	if !strings.Contains(string(htmlContent), "window.SQLFORGE_CATALOG = {") {
+		t.Errorf("expected HTML to contain injected catalog metadata block")
+	}
+	if !strings.Contains(string(htmlContent), "customer_360") {
+		t.Errorf("expected HTML catalog block to contain model customer_360")
+	}
+}
+

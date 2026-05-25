@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var uiPortFlag string
+
 var uiCmd = &cobra.Command{
 	Use:   "ui [environment]",
 	Short: "Launch the SQLForge Web GUI",
@@ -55,6 +57,9 @@ var uiCmd = &cobra.Command{
 		http.Handle("/", http.FileServer(http.FS(distFS)))
 
 		port := "8080"
+		if uiPortFlag != "" {
+			port = uiPortFlag
+		}
 		fmt.Printf("\n🚀 SQLForge Web GUI running at http://localhost:%s\n", port)
 
 		err = http.ListenAndServe(":"+port, nil)
@@ -66,5 +71,6 @@ var uiCmd = &cobra.Command{
 }
 
 func init() {
+	uiCmd.Flags().StringVarP(&uiPortFlag, "port", "p", "8080", "Port to run the SQLForge Web GUI on")
 	rootCmd.AddCommand(uiCmd)
 }

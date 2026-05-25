@@ -33,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(parseCmd)
 	rootCmd.AddCommand(aiCmd)
 	rootCmd.AddCommand(testCmd)
+	rootCmd.AddCommand(docsCmd)
 
 	applyCmd.Flags().StringVarP(&modelFlag, "model", "m", "", "Run only a specific model")
 	applyCmd.Flags().IntVarP(&threadsFlag, "threads", "t", 4, "Number of concurrent threads to use for execution")
