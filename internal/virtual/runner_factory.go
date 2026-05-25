@@ -17,10 +17,6 @@ func NewRunner(dialect string, dsn string) (Runner, error) {
 		return NewClickHouseRunner(dsn)
 	case "postgres":
 		return NewPostgresRunner(dsn)
-	case "doris":
-		return NewDorisRunner(dsn)
-	case "velodb":
-		return NewVeloDBRunner(dsn)
 	default:
 		// Attempt to load as a plugin
 		return loadRunnerPlugin(dialect, dsn)
