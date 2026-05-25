@@ -2,6 +2,7 @@ package plan
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -10,14 +11,22 @@ import (
 	"github.com/drover-org/drover-sqlforge/internal/virtual"
 )
 
+// errMockExec is a sentinel error returned by MockRunner.Exec when ExecErr is set.
+var errMockExec = errors.New("mock exec error")
+
 type MockRunner struct {
 	LastDDL          string
+	LastSQL          string
+	ExecErr          error
 	QueryCountResult int
 	QueryCountErr    error
 	QueryCountCalls  []string
 }
 
 func (m *MockRunner) Exec(ctx context.Context, sql string) error {
+	if m.ExecErr != nil {
+		return m.ExecErr
+	}
 	m.LastDDL = sql
 	return nil
 }
@@ -26,6 +35,7 @@ func (m *MockRunner) CreateTableDDL(schema, table, selectSQL string) string {
 	return "table " + table
 }
 func (m *MockRunner) CreateViewDDL(schema, table, selectSQL string) string {
+	m.LastSQL = selectSQL
 	return "view " + table
 }
 func (m *MockRunner) CreateMaterializedViewDDL(schema, table, selectSQL string) string {
@@ -48,6 +58,12 @@ func (m *MockRunner) Name() string { return "duckdb" }
 
 func (m *MockRunner) QueryData(ctx context.Context, sql string) ([]map[string]interface{}, error) {
 	return nil, nil
+}
+
+// newMockVMgr builds a virtual.Manager backed by the given MockRunner.
+// Shared by apply_test.go and materializer_test.go.
+func newMockVMgr(runner virtual.Runner, stateMgr *state.Manager) *virtual.Manager {
+	return virtual.NewManager(runner, stateMgr)
 }
 
 func TestApplyPlanRouting(t *testing.T) {
