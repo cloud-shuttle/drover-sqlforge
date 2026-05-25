@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLForge Data Catalog</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #030712;
+            --bg-card: rgba(17, 24, 39, 0.6);
+            --bg-sidebar: rgba(10, 15, 30, 0.85);
+            --bg-code: #0b0f19;
+            --border-color: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.15);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.2);
+            --accent: #8b5cf6;
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.15);
+            --info: #3b82f6;
+            --warning: #f59e0b;
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-title: 'Outfit', sans-serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+        }
+
+        /* Sidebar Styling */
+        aside {
+            width: 320px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: flex-col;
+            height: 100%;
+            backdrop-filter: blur(20px);
+            z-index: 10;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-b: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h1 {
+            font-family: var(--font-title);
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 30%, #818cf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .env-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--primary-glow);
+            color: #818cf8;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            margin-top: 4px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .search-container {
+            padding: 16px 24px;
+            position: relative;
+        }
+
+        .search-container input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px 10px 36px;
+            color: var(--text-main);
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-container input:focus {
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .search-container i {
+            position: absolute;
+            left: 36px;
+            top: 28px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .sidebar-scroll {
+            flex-1: 1 1 0%;
+            overflow-y: auto;
+            padding: 0 16px 24px 16px;
+            flex-grow: 1;
+        }
+
+        .category-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin: 20px 8px 8px 8px;
+        }
+
+        .model-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .model-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            font-weight: 500;
+            gap: 10px;
+        }
+
+        .model-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+        }
+
+        .model-item.active {
+            background: var(--primary-glow);
+            color: #a5b4fc;
+            border-color: rgba(99, 102, 241, 0.25);
+        }
+
+        .model-item i {
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .model-item .mat-type {
+            margin-left: auto;
+            font-size: 10px;
+            font-family: var(--font-mono);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1px 6px;
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        /* Main Workspace */
+        main {
+            flex-grow: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: rgba(3, 7, 18, 0.2);
+        }
+
+        .main-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(3, 7, 18, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .header-left h2 {
+            font-family: var(--font-title);
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header-left p {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            margin-top: 2px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        /* Content Container */
+        .workspace-content {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        .tab-panel {
+            display: none;
+            width: 100%;
+            height: 100%;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .tab-panel.active {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Glassmorphism Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            transition: border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .card h3 {
+            font-family: var(--font-title);
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        /* Details Tab Cards */
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .meta-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13.5px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .meta-label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .meta-value {
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 1px 6px;
+            border-radius: 4px;
+            color: #c7d2fe;
+        }
+
+        .meta-value.val-text {
+            font-family: var(--font-sans);
+            background: transparent;
+            padding: 0;
+            color: var(--text-main);
+        }
+
+        /* SQL Panel */
+        .sql-container {
+            background: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            overflow: auto;
+            max-height: calc(100vh - 250px);
+            position: relative;
+        }
+
+        .sql-container pre {
+            font-family: var(--font-mono);
+            font-size: 13.5px;
+            line-height: 1.6;
+            color: #c7d2fe;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        /* Lineage Table */
+        .lineage-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+
+        .lineage-table th {
+            text-align: left;
+            padding: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .lineage-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .col-badge {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            background: rgba(99, 102, 241, 0.1);
+            color: #818cf8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(99, 102, 241, 0.15);
+        }
+
+        .source-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .source-badge {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.03);
+            color: #c7d2fe;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* Tests Grid */
+        .tests-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .test-card {
+            background: rgba(16, 185, 129, 0.04);
+            border: 1px solid rgba(16, 185, 129, 0.15);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-family: var(--font-mono);
+            color: #a7f3d0;
+        }
+
+        .test-card i {
+            color: var(--success);
+            flex-shrink: 0;
+        }
+
+        /* Empty State */
+        .empty-state {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 48px;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            color: rgba(99, 102, 241, 0.3);
+        }
+
+        .empty-state h3 {
+            font-family: var(--font-title);
+            font-size: 20px;
+            color: #fff;
+        }
+
+        /* Mermaid Graph Viewer */
+        .graph-wrapper {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            min-height: 400px;
+            max-height: calc(100vh - 250px);
+        }
+
+        #mermaid-graph {
+            width: 100%;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside>
+        <div class="sidebar-header">
+            <h1><i data-lucide="zap"></i> SQLForge Docs</h1>
+            <span class="env-badge" id="env-tag">production</span>
+        </div>
+
+        <div class="search-container">
+            <i data-lucide="search" size="16"></i>
+            <input type="text" id="search-bar" placeholder="Search models, sources..." oninput="filterModels()">
+        </div>
+
+        <div class="sidebar-scroll">
+            <!-- Staging Models -->
+            <div id="section-staging" style="display: none;">
+                <div class="category-title">Staging Models</div>
+                <ul class="model-list" id="list-staging"></ul>
+            </div>
+
+            <!-- Intermediate Models -->
+            <div id="section-intermediate" style="display: none;">
+                <div class="category-title">Intermediate Models</div>
+                <ul class="model-list" id="list-intermediate"></ul>
+            </div>
+
+            <!-- Marts Models -->
+            <div id="section-marts" style="display: none;">
+                <div class="category-title">Marts Models</div>
+                <ul class="model-list" id="list-marts"></ul>
+            </div>
+
+            <!-- Semantic Models -->
+            <div id="section-semantic" style="display: none;">
+                <div class="category-title">Semantic Metrics</div>
+                <ul class="model-list" id="list-semantic"></ul>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main>
+        <!-- Welcome Screen -->
+        <div class="empty-state" id="welcome-screen">
+            <i data-lucide="compass"></i>
+            <h3>Welcome to your SQLForge Documentation Catalog</h3>
+            <p>Select a model or metric from the sidebar to inspect lineages, SQL declarations, configurations, and validations.</p>
+        </div>
+
+        <!-- Detail Screen -->
+        <div id="details-screen" style="display: none; height: 100%; flex-direction: column; overflow: hidden;">
+            <!-- Header -->
+            <div class="main-header">
+                <div class="header-left">
+                    <h2 id="model-title">fct_orders</h2>
+                    <p id="model-subtitle">models/marts/fct_orders.sql</p>
+                </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('details')" id="tab-details-btn">
+                        <i data-lucide="info" size="14"></i>Details
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('sql')" id="tab-sql-btn">
+                        <i data-lucide="code" size="14"></i>SQL Code
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('lineage')" id="tab-lineage-btn">
+                        <i data-lucide="git-branch" size="14"></i>Lineage Map
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable content -->
+            <div class="workspace-content">
+                <!-- Details Panel -->
+                <div class="tab-panel active" id="panel-details">
+                    <div class="details-grid">
+                        <!-- Configuration -->
+                        <div class="card">
+                            <h3><i data-lucide="settings" size="16"></i> Configuration</h3>
+                            <div class="meta-list">
+                                <div class="meta-row">
+                                    <span class="meta-label">Materialized</span>
+                                    <span class="meta-value" id="meta-materialized">table</span>
+                                </div>
+                                <div class="meta-row">
+                                    <span class="meta-label">Database Target</span>
+                                    <span class="meta-value" id="meta-database">clickhouse_analytics</span>
+                                </div>
+                                <div class="meta-row">
+                                    <span class="meta-label">Schema / Schema Namespace</span>
+                                    <span class="meta-value" id="meta-schema">analytics_marts</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Relations -->
+                        <div class="card">
+                            <h3><i data-lucide="link" size="16"></i> Relations</h3>
+                            <div class="meta-list">
+                                <div class="meta-row">
+                                    <span class="meta-label">Upstream Dependencies</span>
+                                    <span class="meta-value val-text" id="meta-upstream-count">2 upstream nodes</span>
+                                </div>
+                                <div class="meta-row">
+                                    <span class="meta-label">Downstream Dependants</span>
+                                    <span class="meta-value val-text" id="meta-downstream-count">0 downstream nodes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quality Assertions -->
+                    <div class="card" id="card-tests-section" style="display: none;">
+                        <h3><i data-lucide="check-circle" size="16"></i> Data Quality Assertions</h3>
+                        <div class="tests-container" id="model-tests">
+                            <div class="test-card"><i data-lucide="check" size="14"></i>not_null(order_id)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SQL Panel -->
+                <div class="tab-panel" id="panel-sql">
+                    <div class="sql-container">
+                        <button class="copy-btn" onclick="copySQL()"><i data-lucide="copy" size="12"></i>Copy SQL</button>
+                        <pre><code id="sql-code">SELECT * FROM stg_orders;</code></pre>
+                    </div>
+                </div>
+
+                <!-- Lineage Panel -->
+                <div class="tab-panel" id="panel-lineage">
+                    <!-- Column Lineage -->
+                    <div class="card" id="card-column-lineage">
+                        <h3><i data-lucide="table-properties" size="16"></i> Structural Column Lineage</h3>
+                        <table class="lineage-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 35%;">Output Column</th>
+                                    <th>Upstream Source References</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lineage-rows">
+                                <tr>
+                                    <td><span class="col-badge">order_id</span></td>
+                                    <td>
+                                        <div class="source-badges">
+                                            <span class="source-badge">stg_orders.order_id</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Mermaid DAG Card -->
+                    <div class="card">
+                        <h3><i data-lucide="network" size="16"></i> Upstream Dependency Map</h3>
+                        <div class="graph-wrapper">
+                            <div class="mermaid" id="mermaid-graph"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- INJECT PAYLOAD HERE -->
+    <script>
+        /* SQLFORGE_CATALOG_INJECT_START */
+        window.SQLFORGE_CATALOG = {
+            "environment": "mock-preview",
+            "schema": "sqlforge__prod",
+            "models": {
+                "stg_orders": {
+                    "name": "stg_orders",
+                    "path": "models/staging/stg_orders.sql",
+                    "type": "model",
+                    "materialization": "view",
+                    "database": "analytics",
+                    "schema": "sqlforge__prod",
+                    "sql": "SELECT id, customer_id, order_date FROM raw_orders",
+                    "lineage": [
+                        {"output": "id", "sources": [{"relation": "raw_orders", "column": "id"}]},
+                        {"output": "customer_id", "sources": [{"relation": "raw_orders", "column": "customer_id"}]}
+                    ],
+                    "upstream": [],
+                    "downstream": ["fct_orders"],
+                    "tests": ["not_null(id)", "unique(id)"]
+                },
+                "fct_orders": {
+                    "name": "fct_orders",
+                    "path": "models/marts/fct_orders.sql",
+                    "type": "model",
+                    "materialization": "table",
+                    "database": "analytics",
+                    "schema": "sqlforge__prod",
+                    "sql": "SELECT id, customer_id FROM stg_orders",
+                    "lineage": [
+                        {"output": "id", "sources": [{"relation": "stg_orders", "column": "id"}]},
+                        {"output": "customer_id", "sources": [{"relation": "stg_orders", "column": "customer_id"}]}
+                    ],
+                    "upstream": ["stg_orders"],
+                    "downstream": [],
+                    "tests": ["relationship(customer_id -> stg_orders.customer_id)"]
+                }
+            },
+            "metrics": [
+                {
+                    "name": "total_orders",
+                    "expression": "COUNT(id)",
+                    "model": "fct_orders",
+                    "dimensions": ["customer_id"]
+                }
+            ],
+            "edges": [
+                {"source": "stg_orders", "target": "fct_orders"}
+            ]
+        };
+        /* SQLFORGE_CATALOG_INJECT_END */
+    </script>
+
+    <!-- CORE RENDER ENGINE -->
+    <script>
+        // Init Mermaid
+        mermaid.initialize({
+            theme: 'dark',
+            startOnLoad: false,
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            themeVariables: {
+                background: '#0b0f19',
+                primaryColor: '#1e1b4b',
+                primaryTextColor: '#c7d2fe',
+                lineColor: '#6366f1',
+                textColor: '#f3f4f6'
+            }
+        });
+
+        const catalog = window.SQLFORGE_CATALOG;
+        let selectedModel = null;
+
+        // Render Page
+        document.addEventListener("DOMContentLoaded", () => {
+            if (catalog) {
+                // Render Env Title
+                document.getElementById("env-tag").innerText = catalog.environment;
+                
+                // Populate lists
+                populateSidebar();
+                
+                // Replace icons
+                lucide.createIcons();
+            }
+        });
+
+        function populateSidebar() {
+            const listStaging = document.getElementById("list-staging");
+            const listIntermediate = document.getElementById("list-intermediate");
+            const listMarts = document.getElementById("list-marts");
+            const listSemantic = document.getElementById("list-semantic");
+
+            let hasStaging = false;
+            let hasIntermediate = false;
+            let hasMarts = false;
+            let hasSemantic = false;
+
+            // Clear old contents
+            listStaging.innerHTML = "";
+            listIntermediate.innerHTML = "";
+            listMarts.innerHTML = "";
+            listSemantic.innerHTML = "";
+
+            // Populate models
+            Object.values(catalog.models).forEach(m => {
+                const li = document.createElement("li");
+                li.className = "model-item";
+                li.dataset.name = m.name;
+                li.onclick = () => selectModel(m.name);
+
+                let icon = "database";
+                let listRef = listMarts;
+
+                const pathLower = m.path.toLowerCase();
+                if (pathLower.includes("staging") || m.name.startsWith("stg_")) {
+                    icon = "package-open";
+                    listRef = listStaging;
+                    hasStaging = true;
+                } else if (pathLower.includes("intermediate") || m.name.startsWith("int_")) {
+                    icon = "layers";
+                    listRef = listIntermediate;
+                    hasIntermediate = true;
+                } else {
+                    icon = "table";
+                    hasMarts = true;
+                }
+
+                li.innerHTML = `<i data-lucide="${icon}"></i> ${m.name} <span class="mat-type">${m.materialization}</span>`;
+                listRef.appendChild(li);
+            });
+
+            // Populate metrics
+            if (catalog.metrics && catalog.metrics.length > 0) {
+                catalog.metrics.forEach(m => {
+                    const li = document.createElement("li");
+                    li.className = "model-item";
+                    li.dataset.name = m.name;
+                    li.onclick = () => selectMetric(m);
+                    li.innerHTML = `<i data-lucide="bar-chart-2"></i> ${m.name} <span class="mat-type">metric</span>`;
+                    listSemantic.appendChild(li);
+                    hasSemantic = true;
+                });
+            }
+
+            // Display headers
+            if (hasStaging) document.getElementById("section-staging").style.display = "block";
+            if (hasIntermediate) document.getElementById("section-intermediate").style.display = "block";
+            if (hasMarts) document.getElementById("section-marts").style.display = "block";
+            if (hasSemantic) document.getElementById("section-semantic").style.display = "block";
+        }
+
+        function filterModels() {
+            const query = document.getElementById("search-bar").value.toLowerCase();
+            const items = document.querySelectorAll(".model-item");
+            items.forEach(item => {
+                const name = item.dataset.name.toLowerCase();
+                if (name.includes(query)) {
+                    item.style.display = "flex";
+                } else {
+                    item.style.display = "none";
+                }
+            });
+        }
+
+        function selectModel(name) {
+            const m = catalog.models[name];
+            selectedModel = m;
+
+            // Highlight in sidebar
+            document.querySelectorAll(".model-item").forEach(item => {
+                if (item.dataset.name === name) {
+                    item.classList.add("active");
+                } else {
+                    item.classList.remove("active");
+                }
+            });
+
+            // Show details screen
+            document.getElementById("welcome-screen").style.display = "none";
+            document.getElementById("details-screen").style.display = "flex";
+
+            // Headers
+            document.getElementById("model-title").innerText = m.name;
+            document.getElementById("model-subtitle").innerText = m.path;
+
+            // Tabs toggle
+            document.getElementById("tab-lineage-btn").style.display = "flex";
+
+            // Configurations
+            document.getElementById("meta-materialized").innerText = m.materialization;
+            document.getElementById("meta-database").innerText = m.database || "default";
+            document.getElementById("meta-schema").innerText = m.schema;
+
+            // Relations counts
+            const ups = m.upstream ? m.upstream.length : 0;
+            const downs = m.downstream ? m.downstream.length : 0;
+            document.getElementById("meta-upstream-count").innerText = `${ups} upstream model${ups !== 1 ? 's' : ''}`;
+            document.getElementById("meta-downstream-count").innerText = `${downs} downstream model${downs !== 1 ? 's' : ''}`;
+
+            // Data Quality assertions
+            const testsSection = document.getElementById("card-tests-section");
+            const testsList = document.getElementById("model-tests");
+            testsList.innerHTML = "";
+            if (m.tests && m.tests.length > 0) {
+                testsSection.style.display = "block";
+                m.tests.forEach(t => {
+                    const div = document.createElement("div");
+                    div.className = "test-card";
+                    div.innerHTML = `<i data-lucide="check-circle-2"></i> ${t}`;
+                    testsList.appendChild(div);
+                });
+            } else {
+                testsSection.style.display = "none";
+            }
+
+            // SQL Code
+            document.getElementById("sql-code").innerText = m.sql;
+
+            // Column Lineage table
+            const lineageTable = document.getElementById("card-column-lineage");
+            const lineageRows = document.getElementById("lineage-rows");
+            lineageRows.innerHTML = "";
+            if (m.lineage && m.lineage.length > 0) {
+                lineageTable.style.display = "block";
+                m.lineage.forEach(colMap => {
+                    const tr = document.createElement("tr");
+                    const sources = colMap.sources.map(s => `<span class="source-badge">${s.relation}.${s.column}</span>`).join(" ");
+                    tr.innerHTML = `
+                        <td><span class="col-badge">${colMap.output}</span></td>
+                        <td><div class="source-badges">${sources || '<span style="color:var(--text-muted);font-style:italic">literal/function</span>'}</div></td>
+                    `;
+                    lineageRows.appendChild(tr);
+                });
+            } else {
+                lineageTable.style.display = "none";
+            }
+
+            // Render Mermaid graph
+            renderModelLineageGraph(m);
+
+            // Re-render tabs and icons
+            switchTab('details');
+            lucide.createIcons();
+        }
+
+        function selectMetric(metric) {
+            // Highlight metric
+            document.querySelectorAll(".model-item").forEach(item => {
+                if (item.dataset.name === metric.name) {
+                    item.classList.add("active");
+                } else {
+                    item.classList.remove("active");
+                }
+            });
+
+            // Show details screen
+            document.getElementById("welcome-screen").style.display = "none";
+            document.getElementById("details-screen").style.display = "flex";
+
+            // Headers
+            document.getElementById("model-title").innerText = metric.name;
+            document.getElementById("model-subtitle").innerText = `semantic metric defined on model: ${metric.model}`;
+
+            // Hide lineage tab
+            document.getElementById("tab-lineage-btn").style.display = "none";
+
+            // Details configurations
+            document.getElementById("meta-materialized").innerText = "semantic metric";
+            document.getElementById("meta-database").innerText = "-";
+            document.getElementById("meta-schema").innerText = "-";
+
+            // Relations counts
+            document.getElementById("meta-upstream-count").innerText = `1 upstream model (${metric.model})`;
+            document.getElementById("meta-downstream-count").innerText = `0 downstream models`;
+
+            // No tests on metric itself
+            document.getElementById("card-tests-section").style.display = "none";
+
+            // Expression inside SQL panel
+            document.getElementById("sql-code").innerText = `Expression: ${metric.expression}\nBacking Model: ${metric.model}\nDimensions: ${metric.dimensions.join(", ")}`;
+
+            // Switch to details
+            switchTab('details');
+            lucide.createIcons();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-btn").forEach(btn => {
+                btn.classList.remove("active");
+            });
+            document.querySelectorAll(".tab-panel").forEach(panel => {
+                panel.classList.remove("active");
+            });
+
+            document.getElementById(`tab-${tabId}-btn`).classList.add("active");
+            document.getElementById(`panel-${tabId}`).classList.add("active");
+        }
+
+        function copySQL() {
+            const sqlText = document.getElementById("sql-code").innerText;
+            navigator.clipboard.writeText(sqlText).then(() => {
+                const btn = document.querySelector(".copy-btn");
+                btn.innerHTML = `<i data-lucide="check" size="12"></i>Copied!`;
+                lucide.createIcons();
+                setTimeout(() => {
+                    btn.innerHTML = `<i data-lucide="copy" size="12"></i>Copy SQL`;
+                    lucide.createIcons();
+                }, 2000);
+            });
+        }
+
+        function renderModelLineageGraph(model) {
+            const graphDiv = document.getElementById("mermaid-graph");
+            graphDiv.removeAttribute("data-processed");
+            graphDiv.innerHTML = "";
+
+            // Gather direct upstreams and downstream paths
+            let graphText = "graph LR\n";
+            
+            // Define styling classes
+            graphText += "  classDef active fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#fff;\n";
+            graphText += "  classDef other fill:#0f172a,stroke:#334155,stroke-width:1px,color:#9ca3af;\n";
+
+            // Collect nodes
+            const nodes = new Set();
+            nodes.add(model.name);
+
+            if (model.upstream) {
+                model.upstream.forEach(dep => nodes.add(dep));
+            }
+            if (model.downstream) {
+                model.downstream.forEach(dep => nodes.add(dep));
+            }
+
+            // Build node definitions with styles
+            nodes.forEach(node => {
+                const isCurrent = node === model.name;
+                const styleClass = isCurrent ? "active" : "other";
+                graphText += `  ${node}["${node}"]:::${styleClass}\n`;
+            });
+
+            // Build edges
+            catalog.edges.forEach(edge => {
+                if (nodes.has(edge.source) && nodes.has(edge.target)) {
+                    graphText += `  ${edge.source} --> ${edge.target}\n`;
+                }
+            });
+
+            // Parse and render
+            try {
+                mermaid.render("mermaid-svg", graphText).then(({ svg }) => {
+                    graphDiv.innerHTML = svg;
+                });
+            } catch (err) {
+                console.error("Failed to render Mermaid DAG:", err);
+                graphDiv.innerHTML = `<span style="color:var(--warning)">Dependency DAG visualizer requires a network connection to load Mermaid.js.</span>`;
+            }
+        }
+    </script>
+</body>
+</html>
