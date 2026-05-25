@@ -2,7 +2,7 @@
 
 Welcome, AI Agent. This file contains the system prompts, architectural context, and tool configurations you need to successfully work on the `drover-sqlforge` repository.
 
-**Domain language:** [`CONTEXT.md`](CONTEXT.md) (glossary). **Decisions:** [`docs/adr/`](docs/adr/).
+**Domain language:** [`CONTEXT.md`](CONTEXT.md) (glossary). **Decisions:** [`docs/adr/`](docs/adr/). **Org index:** [`../AGENTS.md`](../AGENTS.md).
 
 ## Ecosystem Role
 
@@ -42,7 +42,7 @@ When working in this repository, use the following commands to build and verify 
 
 ## 5. MCP tools (SQLForge MCP server)
 
-Bound to one **MCP session environment** at server start. Prefer **CLI invocation** for **plan** and **apply** until mutation tools ship.
+Bound to one **MCP session environment** at server start.
 
 | Tool | v1 status | Use |
 |------|-----------|-----|

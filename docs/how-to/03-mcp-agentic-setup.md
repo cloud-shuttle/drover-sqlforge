@@ -70,7 +70,7 @@ In `.cursor/mcp.json` at the project root:
 
 ### Drover Code
 
-Drover Code agents discover SQLForge automatically when `sqlforge mcp` is running in the workspace. See `agents.md` for the full agent context.
+Drover Code agents discover SQLForge automatically when `sqlforge mcp` is running in the workspace. See [`AGENTS.md`](../../AGENTS.md) for the full agent context.
 
 ---
 
@@ -134,6 +134,6 @@ The MCP server is bound to one environment at startup. Restart with the correct 
 
 ## Related
 
-- [`agents.md`](../../agents.md) — full agent context for AI coding assistants working in this repo
+- [`AGENTS.md`](../../AGENTS.md) — full agent context for AI coding assistants working in this repo
 - [Reference: MCP tools](../reference/mcp-tools.md) — complete parameter and response schemas for each tool
 - [ADR 0002: CLI invocation and Drover Code integration](../../docs/adr/0002-cli-invocation-drover-code-integration.md)
