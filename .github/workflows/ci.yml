@@ -13,6 +13,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
+      - name: Run go vet
+        run: go vet ./...
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: "1.22"
+          go-package: "./..."
       - name: Test (Unit, Snapshot, and E2E)
         env:
           TERM: xterm-256color
