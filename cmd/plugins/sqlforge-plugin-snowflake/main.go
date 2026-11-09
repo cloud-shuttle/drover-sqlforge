@@ -10,7 +10,7 @@ import (
 
 	"github.com/drover-org/drover-sqlforge/internal/virtual"
 	"github.com/hashicorp/go-plugin"
-	_ "github.com/snowflakedb/gosnowflake"
+	_ "github.com/snowflakedb/gosnowflake/v2"
 )
 
 type SnowflakeRunner struct {
