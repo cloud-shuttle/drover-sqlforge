@@ -58,7 +58,10 @@ Before graduating from alpha to beta, we are targeting measurable improvements t
 | `internal/snapshot` | 29.9% | **≥ 50%** |
 | `internal/virtual` | 26.0% | **≥ 40%** |
 
-Coverage targets are enforced by the quality gate (`make quality-gate` / CI `quality-gate` job).
+CI (the `quality-gate` job) and `make quality-gate` enforce **per-package floors** from [`quality/coverage-floors.json`](quality/coverage-floors.json). The floors start just below today's coverage and are raised toward these targets in the PRs that add the tests. The same job runs a per-function CRAP gate ([`tools/crap`](tools/crap)):
+- Every Go function must score **≤ 30**.
+- The 27 legacy functions above that are pinned in [`quality/crap-baseline.json`](quality/crap-baseline.json) and may not get worse.
+- `make quality-baseline` lowers those ceilings as tests improve.
 
 Additional v0.2.0 scope:
 - [ ] Reference docs: `docs/reference/sqlforge-yml.md` and `docs/reference/model-config.md`

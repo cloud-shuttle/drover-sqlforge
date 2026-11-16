@@ -65,8 +65,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run quality gate
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Run quality gate (CRAP ratchet)
+        # Per-function CRAP via tools/crap: every function must score <= 30,
+        # except legacy functions pinned in quality/crap-baseline.json, which
+        # may not get worse. Same check as `make quality-gate`.
+        run: go run ./tools/crap -coverage coverage.out -baseline quality/crap-baseline.json
+
+      - name: Coverage floors
         run: |
-          python3 scripts/quality-gate.py . \
+          python3 scripts/coverage-floors.py \
             --coverage coverage.out \
-            --limit 10000
+            --floors quality/coverage-floors.json
