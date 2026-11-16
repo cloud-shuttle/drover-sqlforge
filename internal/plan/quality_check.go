@@ -3,6 +3,7 @@ package plan
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/drover-org/drover-sqlforge/internal/sqlident"
@@ -15,6 +16,12 @@ import (
 type qualityQuery struct {
 	SQL    string
 	onFail func(count int) error
+	// kind and column label the assertion for reports (sqlforge test).
+	kind   string
+	column string
+	// detail is extra context for passing results (e.g. the referenced
+	// parent of a relationship test).
+	detail string
 	// err is set instead of SQL when the config value is unsafe to
 	// interpolate (e.g. an invalid column name).
 	err error
@@ -68,6 +75,57 @@ func RunDataQualityTestsFromConfig(ctx context.Context, runner virtual.Runner, c
 	return nil
 }
 
+// QualityResult is the outcome of one column/relationship assertion, for
+// reporting every result instead of stopping at the first failure.
+type QualityResult struct {
+	Model  string
+	Kind   string // not_null, unique, accepted_values, relationship
+	Column string
+	Detail string // context for passing results, e.g. "referenced users.id"
+	Passed bool
+	Err    error // why it failed: query error, unsafe config, or failed assertion
+}
+
+// EvaluateDataQuality runs every column/relationship assertion declared on a
+// model and returns one result per assertion, in config-key order. It uses
+// the same validated, dialect-escaped SQL as apply (RunDataQualityTestsFromConfig).
+func EvaluateDataQuality(ctx context.Context, runner virtual.Runner, modelName string, cfg map[string]string, schema, table string, execPlan *ExecutionPlan) []QualityResult {
+	keys := make([]string, 0, len(cfg))
+	for k := range cfg {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	var results []QualityResult
+	for _, k := range keys {
+		for _, check := range registeredChecks {
+			if !check.Matches(k) {
+				continue
+			}
+			for _, q := range check.Queries(runner.Name(), schema, table, k, cfg[k], execPlan) {
+				r := QualityResult{Model: modelName, Kind: q.kind, Column: q.column, Detail: q.detail}
+				switch {
+				case q.err != nil:
+					r.Err = fmt.Errorf("unsafe test config %s: %w", k, q.err)
+				default:
+					count, err := runner.QueryCount(ctx, q.SQL)
+					switch {
+					case err != nil:
+						r.Err = err
+					case count > 0:
+						r.Err = q.onFail(count)
+					default:
+						r.Passed = true
+					}
+				}
+				results = append(results, r)
+			}
+			break
+		}
+	}
+	return results
+}
+
 // ─── not_null ─────────────────────────────────────────────────────────────────
 
 type notNullCheck struct{}
@@ -79,9 +137,11 @@ func (notNullCheck) Queries(_, schema, table, _, val string, _ *ExecutionPlan) [
 	for _, col := range splitCSV(val) {
 		col := col // pin loop variable for closure
 		if err := sqlident.ValidateIdentifier("not_null column", col); err != nil {
-			return []qualityQuery{{err: err}}
+			return []qualityQuery{{kind: "not_null", column: col, err: err}}
 		}
 		out = append(out, qualityQuery{
+			kind:   "not_null",
+			column: col,
 			SQL: fmt.Sprintf(
 				"SELECT COUNT(*) FROM %s.%s WHERE %s IS NULL",
 				schema, table, col,
@@ -108,11 +168,15 @@ func (uniqueCheck) Queries(_, schema, table, _, val string, _ *ExecutionPlan) []
 	for _, col := range splitCSV(val) {
 		col := col
 		if err := sqlident.ValidateIdentifier("unique column", col); err != nil {
-			return []qualityQuery{{err: err}}
+			return []qualityQuery{{kind: "unique", column: col, err: err}}
 		}
 		out = append(out, qualityQuery{
+			kind:   "unique",
+			column: col,
+			// HAVING COUNT(*) rather than a select-list alias, and an aliased
+			// derived table: Postgres rejects both other forms.
 			SQL: fmt.Sprintf(
-				"SELECT COUNT(*) FROM (SELECT %s, COUNT(*) as _c FROM %s.%s GROUP BY %s HAVING _c > 1)",
+				"SELECT COUNT(*) FROM (SELECT %s FROM %s.%s GROUP BY %s HAVING COUNT(*) > 1) AS sqlforge_dups",
 				col, schema, table, col,
 			),
 			onFail: func(n int) error {
@@ -137,7 +201,7 @@ func (acceptedValuesCheck) Matches(key string) bool {
 func (acceptedValuesCheck) Queries(dialect, schema, table, key, val string, _ *ExecutionPlan) []qualityQuery {
 	col := strings.TrimPrefix(key, "test_accepted_values_")
 	if err := sqlident.ValidateIdentifier("accepted_values column", col); err != nil {
-		return []qualityQuery{{err: err}}
+		return []qualityQuery{{kind: "accepted_values", column: col, err: err}}
 	}
 	var quoted []string
 	for _, v := range splitCSV(val) {
@@ -145,6 +209,8 @@ func (acceptedValuesCheck) Queries(dialect, schema, table, key, val string, _ *E
 	}
 	inClause := strings.Join(quoted, ", ")
 	return []qualityQuery{{
+		kind:   "accepted_values",
+		column: col,
 		SQL: fmt.Sprintf(
 			"SELECT COUNT(*) FROM %s.%s WHERE %s NOT IN (%s)",
 			schema, table, col, inClause,
@@ -173,7 +239,7 @@ func (relationshipCheck) Queries(_, schema, table, _, val string, execPlan *Exec
 		return nil // malformed value — skip silently (matches prior behaviour)
 	}
 	if err := validateRelationship(val); err != nil {
-		return []qualityQuery{{err: err}}
+		return []qualityQuery{{kind: "relationship", column: localCol, err: err}}
 	}
 
 	envSchema := schema
@@ -183,6 +249,9 @@ func (relationshipCheck) Queries(_, schema, table, _, val string, execPlan *Exec
 	parentTableFQN := ResolveParentTarget(envSchema, parentModel, execPlan)
 
 	return []qualityQuery{{
+		kind:   "relationship",
+		column: localCol,
+		detail: fmt.Sprintf("referenced %s.%s", parentModel, parentCol),
 		SQL: fmt.Sprintf(
 			"SELECT COUNT(*) FROM %s.%s WHERE %s IS NOT NULL AND %s NOT IN (SELECT %s FROM %s)",
 			schema, table, localCol, localCol, parentCol, parentTableFQN,

@@ -388,109 +388,20 @@ var testCmd = &cobra.Command{
 		fmt.Println("\nRunning model column & relationship tests:")
 		for _, a := range allModels {
 			_, targetSchema, targetTable := plan.ResolveTarget(schema, a)
-
-			for k, v := range a.Config {
-				if k == "test_not_null" {
-					cols := strings.Split(v, ",")
-					for _, col := range cols {
-						col = strings.TrimSpace(col)
-						testSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE %s IS NULL", targetSchema, targetTable, col)
-						count, err := runner.QueryCount(ctx, testSQL)
-						if err == nil && count == 0 {
-							passed++
-							fmt.Printf("  %s.%s (not_null) ....... \x1b[32mPASS\x1b[0m\n", a.Name, col)
-						} else {
-							failed++
-							var errStr string
-							if err != nil {
-								errStr = err.Error()
-							} else {
-								errStr = fmt.Sprintf("found %d null records", count)
-							}
-							fmt.Printf("  %s.%s (not_null) ....... \x1b[31mFAIL\x1b[0m (%s)\n", a.Name, col, errStr)
-						}
+			// Same validated, dialect-escaped assertions as apply (#54).
+			for _, r := range plan.EvaluateDataQuality(ctx, runner, a.Name, a.Config, targetSchema, targetTable, execPlan) {
+				label := fmt.Sprintf("  %s.%s (%s) ", a.Name, r.Column, r.Kind)
+				if r.Passed {
+					passed++
+					suffix := ""
+					if r.Detail != "" {
+						suffix = " (" + r.Detail + ")"
 					}
-				} else if k == "test_unique" {
-					cols := strings.Split(v, ",")
-					for _, col := range cols {
-						col = strings.TrimSpace(col)
-						testSQL := fmt.Sprintf("SELECT COUNT(*) FROM (SELECT %s, COUNT(*) as _c FROM %s.%s GROUP BY %s HAVING _c > 1)", col, targetSchema, targetTable, col)
-						count, err := runner.QueryCount(ctx, testSQL)
-						if err == nil && count == 0 {
-							passed++
-							fmt.Printf("  %s.%s (unique) ......... \x1b[32mPASS\x1b[0m\n", a.Name, col)
-						} else {
-							failed++
-							var errStr string
-							if err != nil {
-								errStr = err.Error()
-							} else {
-								errStr = fmt.Sprintf("found %d duplicate records", count)
-							}
-							fmt.Printf("  %s.%s (unique) ......... \x1b[31mFAIL\x1b[0m (%s)\n", a.Name, col, errStr)
-						}
-					}
-				} else if strings.HasPrefix(k, "test_accepted_values_") {
-					col := strings.TrimPrefix(k, "test_accepted_values_")
-					vals := strings.Split(v, ",")
-					var quotedVals []string
-					for _, val := range vals {
-						val = strings.TrimSpace(val)
-						quotedVals = append(quotedVals, fmt.Sprintf("'%s'", val))
-					}
-					inClause := strings.Join(quotedVals, ", ")
-					testSQL := fmt.Sprintf("SELECT COUNT(*) FROM %s.%s WHERE %s NOT IN (%s)", targetSchema, targetTable, col, inClause)
-					count, err := runner.QueryCount(ctx, testSQL)
-					if err == nil && count == 0 {
-						passed++
-						fmt.Printf("  %s.%s (accepted_values)  \x1b[32mPASS\x1b[0m\n", a.Name, col)
-					} else {
-						failed++
-						var errStr string
-						if err != nil {
-							errStr = err.Error()
-						} else {
-							errStr = fmt.Sprintf("found %d invalid values", count)
-						}
-						fmt.Printf("  %s.%s (accepted_values)  \x1b[31mFAIL\x1b[0m (%s)\n", a.Name, col, errStr)
-					}
-				} else if strings.HasPrefix(k, "test_relationship") {
-					parts := strings.Split(v, " to ")
-					if len(parts) != 2 {
-						parts = strings.Split(v, "->")
-					}
-					if len(parts) == 2 {
-						localCol := strings.TrimSpace(parts[0])
-						parentTarget := strings.TrimSpace(parts[1])
-
-						parentParts := strings.Split(parentTarget, ".")
-						if len(parentParts) == 2 {
-							parentModel := strings.TrimSpace(parentParts[0])
-							parentCol := strings.TrimSpace(parentParts[1])
-
-							parentTableFQN := plan.ResolveParentTarget(schema, parentModel, execPlan)
-							testSQL := fmt.Sprintf(
-								"SELECT COUNT(*) FROM %s.%s WHERE %s IS NOT NULL AND %s NOT IN (SELECT %s FROM %s)",
-								targetSchema, targetTable, localCol, localCol, parentCol, parentTableFQN,
-							)
-
-							count, err := runner.QueryCount(ctx, testSQL)
-							if err == nil && count == 0 {
-								passed++
-								fmt.Printf("  %s.%s (relationship) ... \x1b[32mPASS\x1b[0m (referenced %s.%s)\n", a.Name, localCol, parentModel, parentCol)
-							} else {
-								failed++
-								var errStr string
-								if err != nil {
-									errStr = err.Error()
-								} else {
-									errStr = fmt.Sprintf("found %d invalid referenced values", count)
-								}
-								fmt.Printf("  %s.%s (relationship) ... \x1b[31mFAIL\x1b[0m (%s)\n", a.Name, localCol, errStr)
-							}
-						}
-					}
+					fmt.Printf("%s... \x1b[32mPASS\x1b[0m%s\n", label, suffix)
+					continue
 				}
+				failed++
+				fmt.Printf("%s... \x1b[31mFAIL\x1b[0m (%v)\n", label, r.Err)
 			}
 		}
 
