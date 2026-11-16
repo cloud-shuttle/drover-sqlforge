@@ -74,7 +74,7 @@ function App() {
         setEdges(layoutedEdges);
       })
       .catch(err => console.error("Failed to fetch DAG:", err));
-  }, []);
+  }, [setNodes, setEdges]);
 
   return (
     <div className="flex w-screen h-screen bg-slate-950 font-sans overflow-hidden">
@@ -108,8 +108,9 @@ function App() {
 
       {selectedNodeId && (
         <div className="h-full border-l border-slate-800 z-20">
-          <TableExplorer 
-            modelName={selectedNodeId} 
+          <TableExplorer
+            key={selectedNodeId}
+            modelName={selectedNodeId}
             onClose={() => setSelectedNodeId(null)} 
           />
         </div>

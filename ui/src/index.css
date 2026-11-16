@@ -1,3 +1,4 @@
+@source not "../dist";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

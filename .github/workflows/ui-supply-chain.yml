@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   ui-audit:
-    name: npm ci, audit, build
+    name: npm ci, audit, lint, build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,8 +36,21 @@ jobs:
       - name: Audit (moderate+)
         run: npm audit --audit-level=moderate
 
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
+
       - name: Build static assets
         run: npm run build
+
+      - name: Verify committed ui/dist matches the build
+        # The Go binary embeds ui/dist, so a stale dist ships stale UI code.
+        # Rebuild with `cd ui && npm ci && npm run build` and commit ui/dist.
+        run: |
+          if [ -n "$(git status --porcelain -- dist)" ]; then
+            echo "::error::ui/dist is out of date with ui/src. Run 'cd ui && npm ci && npm run build' and commit ui/dist."
+            git status --short -- dist
+            exit 1
+          fi
 
       - name: Verify Go embed compiles
         working-directory: ${{ github.workspace }}

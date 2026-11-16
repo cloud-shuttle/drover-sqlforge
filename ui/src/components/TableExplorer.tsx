@@ -17,25 +17,28 @@ interface ModelDetails {
 export function TableExplorer({ modelName, onClose }: TableExplorerProps) {
   const [activeTab, setActiveTab] = useState<'details' | 'sql' | 'preview'>('details');
   const [details, setDetails] = useState<ModelDetails | null>(null);
-  const [previewData, setPreviewData] = useState<any[] | null>(null);
+  const [previewData, setPreviewData] = useState<Record<string, unknown>[] | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [error, setError] = useState('');
 
+  // The parent keys this component by modelName, so per-model state starts
+  // fresh on remount; the effect only fetches (no synchronous setState).
   useEffect(() => {
-    // Reset state when model changes
-    setDetails(null);
-    setPreviewData(null);
-    setActiveTab('details');
-    setError('');
-
-    // Fetch details
+    let cancelled = false;
     fetch(`/api/models/${modelName}`)
       .then(res => {
         if (!res.ok) throw new Error("Failed to fetch model details");
         return res.json();
       })
-      .then(data => setDetails(data))
-      .catch(err => setError(err.message));
+      .then(data => {
+        if (!cancelled) setDetails(data);
+      })
+      .catch(err => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [modelName]);
 
   const loadPreview = () => {
@@ -176,7 +179,7 @@ export function TableExplorer({ modelName, onClose }: TableExplorerProps) {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {previewData.map((row, i) => (
                       <tr key={i} className="hover:bg-indigo-50/50 transition-colors">
-                        {Object.values(row).map((val: any, j) => (
+                        {Object.values(row).map((val, j) => (
                           <td key={j} className="px-4 py-2.5 whitespace-nowrap text-gray-700 font-mono text-xs">
                             {val !== null ? String(val) : <span className="text-gray-400 italic">null</span>}
                           </td>
