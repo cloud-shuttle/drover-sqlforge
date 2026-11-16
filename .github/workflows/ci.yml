@@ -22,12 +22,10 @@ jobs:
           go-package: "./..."
       - name: Build plugins and CLI for e2e tests
         # Tests exec ./sqlforge and the ./sqlforge-plugin-* gRPC binaries at the
-        # repo root (see Makefile `plugins` / `e2e`). Build them for this runner
-        # instead of relying on committed binaries built for another OS/arch.
+        # repo root. They are not committed (gitignored); `make plugins` is the
+        # single source of truth for the plugin list, so CI exercises it too.
         run: |
-          for p in duckdb databricks snowflake doris velodb; do
-            go build -o "sqlforge-plugin-$p" "./cmd/plugins/sqlforge-plugin-$p"
-          done
+          make plugins
           go build -o sqlforge ./cmd/sqlforge
       - name: Test (Unit, Snapshot, and E2E)
         env:
