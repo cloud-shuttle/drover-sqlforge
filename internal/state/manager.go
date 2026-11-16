@@ -1,6 +1,10 @@
 package state
 
-import "time"
+import (
+	"time"
+
+	"github.com/drover-org/drover-sqlforge/internal/sqlident"
+)
 
 type Manager struct {
 	Store *Store
@@ -15,6 +19,10 @@ func NewManager(projectPath string) (*Manager, error) {
 }
 
 func (m *Manager) GetOrCreateEnv(name, baseEnv string) (*Environment, error) {
+	// The environment name becomes part of a schema identifier in generated SQL.
+	if err := sqlident.ValidateEnvName(name); err != nil {
+		return nil, err
+	}
 	env, err := m.Store.GetEnvironment(name)
 	if err == nil {
 		return env, nil

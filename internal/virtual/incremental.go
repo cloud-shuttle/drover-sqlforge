@@ -2,6 +2,7 @@ package virtual
 
 import (
 	"fmt"
+	"github.com/drover-org/drover-sqlforge/internal/sqlident"
 	"strings"
 )
 
@@ -35,6 +36,9 @@ func ResolveIncrementalStrategy(config map[string]string) string {
 
 // BuildIncrementalMergeDDL generates dialect-specific incremental load SQL.
 func BuildIncrementalMergeDDL(dialect, schema, table, selectSQL string, config map[string]string) (string, error) {
+	if err := validateIncremental(schema, table, config); err != nil {
+		return "", err
+	}
 	strategy := ResolveIncrementalStrategy(config)
 	qualified := fmt.Sprintf("%s.%s", schema, table)
 	uniqueKey := strings.TrimSpace(config["unique_key"])
@@ -88,6 +92,9 @@ func buildMergeDDL(dialect, qualified, selectSQL, uniqueKey string) (string, err
 
 // BuildIncrementalInitialDDL creates the target table on first incremental apply.
 func BuildIncrementalInitialDDL(dialect, schema, table, selectSQL string, config map[string]string) (string, error) {
+	if err := validateIncremental(schema, table, config); err != nil {
+		return "", err
+	}
 	strategy := ResolveIncrementalStrategy(config)
 	qualified := fmt.Sprintf("%s.%s", schema, table)
 
@@ -114,4 +121,25 @@ func BuildIncrementalInitialDDL(dialect, schema, table, selectSQL string, config
 	default:
 		return fmt.Sprintf("CREATE OR REPLACE TABLE %s AS\n%s", qualified, selectSQL), nil
 	}
+}
+
+// validateIncremental checks every name the incremental builders interpolate.
+func validateIncremental(schema, table string, config map[string]string) error {
+	if err := sqlident.ValidateQualified("schema", schema); err != nil {
+		return err
+	}
+	if err := sqlident.ValidateIdentifier("table", table); err != nil {
+		return err
+	}
+	if uk := strings.TrimSpace(config["unique_key"]); uk != "" {
+		if err := sqlident.ValidateColumnList("unique_key", uk); err != nil {
+			return err
+		}
+	}
+	if ua := strings.TrimSpace(config["updated_at"]); ua != "" {
+		if err := sqlident.ValidateIdentifier("updated_at column", ua); err != nil {
+			return err
+		}
+	}
+	return nil
 }
