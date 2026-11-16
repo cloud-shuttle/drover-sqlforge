@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/drover-org/drover-sqlforge/internal/sqlident"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 )
@@ -68,9 +69,9 @@ func (r *ClickHouseRunner) CreateStreamingTableDDL(schema, table string, config 
 		return fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
     raw_data String
 ) ENGINE = NATS
-SETTINGS nats_url = '%s',
-         nats_subjects = '%s',
-         nats_format = '%s'`, schema, table, natsUrl, natsSubjects, natsFormat)
+SETTINGS nats_url = %s,
+         nats_subjects = %s,
+         nats_format = %s`, schema, table, chLit(natsUrl), chLit(natsSubjects), chLit(natsFormat))
 	}
 
 	kafkaBroker := config["kafka_broker_list"]
@@ -84,11 +85,14 @@ SETTINGS nats_url = '%s',
 	return fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
     raw_data String
 ) ENGINE = Kafka
-SETTINGS kafka_broker_list = '%s',
-         kafka_topic_list = '%s',
-         kafka_group_name = '%s',
-         kafka_format = '%s'`, schema, table, kafkaBroker, kafkaTopic, kafkaGroup, kafkaFormat)
+SETTINGS kafka_broker_list = %s,
+         kafka_topic_list = %s,
+         kafka_group_name = %s,
+         kafka_format = %s`, schema, table, chLit(kafkaBroker), chLit(kafkaTopic), chLit(kafkaGroup), chLit(kafkaFormat))
 }
+
+// chLit escapes a stream connector setting as a ClickHouse string literal.
+func chLit(v string) string { return sqlident.QuoteLiteral("clickhouse", v) }
 
 func (r *ClickHouseRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
 	if r.stub {
