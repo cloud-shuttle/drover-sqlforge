@@ -23,7 +23,7 @@ jobs:
       #   with: ...
       
       # This step uses the pre-built composite action from the root of the repository
-      # When using this in a real project, replace `./` with `drover-org/drover-sqlforge@main`
+      # When using this in a real project, replace `./` with `cloud-shuttle/drover-sqlforge@main`
       - name: Deploy Zero-Copy Preview
         uses: ./
         with:
