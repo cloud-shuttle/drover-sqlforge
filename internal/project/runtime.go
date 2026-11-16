@@ -8,14 +8,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/drover-org/drover-sqlforge/internal/config"
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/model"
-	"github.com/drover-org/drover-sqlforge/internal/parser"
-	"github.com/drover-org/drover-sqlforge/internal/plan"
-	"github.com/drover-org/drover-sqlforge/internal/semantic"
-	"github.com/drover-org/drover-sqlforge/internal/state"
-	"github.com/drover-org/drover-sqlforge/internal/virtual"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/config"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/semantic"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/state"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 )
 
 // Runtime holds a loaded data project ready for plan/apply/MCP operations.

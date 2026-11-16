@@ -3,7 +3,7 @@ package graph
 import (
 	"fmt"
 
-	"github.com/drover-org/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
 )
 
 type DAG struct {

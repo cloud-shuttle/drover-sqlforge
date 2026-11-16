@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/plan"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
 	"github.com/spf13/cobra"
 )
 

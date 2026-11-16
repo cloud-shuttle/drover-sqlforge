@@ -1,6 +1,6 @@
 {
   "_comment": "Per-package statement coverage floors checked by scripts/coverage-floors.py in CI and `make quality-gate`. Floors start just below the coverage on main (2026-11-16) and only ratchet up: raise a floor in the PR that adds the tests. `targets` are the beta-release goals from ROADMAP.md.",
-  "module": "github.com/drover-org/drover-sqlforge",
+  "module": "github.com/cloud-shuttle/drover-sqlforge",
   "floors": {
     "internal/graph": 86.0,
     "internal/mcp": 59.0,

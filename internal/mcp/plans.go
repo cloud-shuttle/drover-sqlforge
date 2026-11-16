@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drover-org/drover-sqlforge/internal/plan"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
 )
 
 // PendingPlan stores an approved execution plan until apply_change consumes it.

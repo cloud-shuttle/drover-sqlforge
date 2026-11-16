@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/virtual/proto"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

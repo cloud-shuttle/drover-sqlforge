@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/model"
-	"github.com/drover-org/drover-sqlforge/internal/sqlident"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
 )
 
 // ValidateApplyTargets checks every identifier that ApplyPlan will

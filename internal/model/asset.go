@@ -1,6 +1,6 @@
 package model
 
-import "github.com/drover-org/drover-sqlforge/internal/parser"
+import "github.com/cloud-shuttle/drover-sqlforge/internal/parser"
 
 // Asset represents a parsed model or source
 type Asset struct {

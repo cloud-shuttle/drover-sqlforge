@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/model"
-	"github.com/drover-org/drover-sqlforge/internal/semantic"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/semantic"
 )
 
 func TestGenerateDAGExport(t *testing.T) {

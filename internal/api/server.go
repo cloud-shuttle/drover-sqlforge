@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/virtual"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 )
 
 type ReactFlowNode struct {

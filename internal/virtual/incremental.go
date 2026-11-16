@@ -2,7 +2,7 @@ package virtual
 
 import (
 	"fmt"
-	"github.com/drover-org/drover-sqlforge/internal/sqlident"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
 	"strings"
 )
 

@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/model"
-	"github.com/drover-org/drover-sqlforge/internal/plan"
-	"github.com/drover-org/drover-sqlforge/internal/project"
-	"github.com/drover-org/drover-sqlforge/internal/sqlguard"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/project"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlguard"
 )
 
 func guardTestRuntime() *project.Runtime {

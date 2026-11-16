@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/sqlident"
-	"github.com/drover-org/drover-sqlforge/internal/virtual"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 )
 
 // qualityQuery pairs an assertion SQL (must return a single COUNT via

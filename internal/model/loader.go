@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/parser"
-	"github.com/drover-org/drover-sqlforge/internal/sqlident"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
 )
 
 // LoadModels walks the models directory and parses .sql files

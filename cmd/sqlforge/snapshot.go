@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/drover-org/drover-sqlforge/internal/config"
-	"github.com/drover-org/drover-sqlforge/internal/snapshot"
-	"github.com/drover-org/drover-sqlforge/internal/state"
-	"github.com/drover-org/drover-sqlforge/internal/virtual"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/config"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/snapshot"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/state"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 	"github.com/spf13/cobra"
 )
 

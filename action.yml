@@ -28,7 +28,7 @@ runs:
       shell: bash
       run: |
         echo "Installing SQLForge CLI..."
-        go install github.com/drover-org/drover-sqlforge/cmd/sqlforge@latest
+        go install github.com/cloud-shuttle/drover-sqlforge/cmd/sqlforge@latest
 
     - name: SQLForge Plan
       id: sqlforge_plan

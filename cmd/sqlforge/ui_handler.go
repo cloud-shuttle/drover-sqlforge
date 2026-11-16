@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/api"
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/virtual"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/api"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 )
 
 // newUIHandler wires the Web GUI routes. When bound to a loopback interface

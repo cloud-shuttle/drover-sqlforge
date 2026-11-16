@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/drover-org/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
 	"github.com/spf13/cobra"
 )
 

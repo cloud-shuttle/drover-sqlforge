@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/drover-org/drover-sqlforge/internal/sqlident"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
 
 	_ "github.com/ClickHouse/clickhouse-go/v2"
 )
