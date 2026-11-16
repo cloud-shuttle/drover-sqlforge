@@ -101,6 +101,11 @@ func ApplyPlan(ctx context.Context, execPlan *ExecutionPlan, stateMgr *state.Man
 		fmt.Printf("Applying plan to environment: %s\n", execPlan.Environment.Name)
 	}
 
+	// Reject unsafe identifiers before any SQL reaches the warehouse.
+	if err := ValidateApplyTargets(execPlan); err != nil {
+		return err
+	}
+
 	if err := vMgr.CreateVirtualEnv(ctx, execPlan.Environment.Name, execPlan.Environment.BaseEnv); err != nil {
 		return fmt.Errorf("failed to create virtual env: %w", err)
 	}

@@ -3,6 +3,7 @@ package plan
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
@@ -118,10 +119,19 @@ func (m *ModelMaterializer) Apply(ctx context.Context, a *model.Asset) error {
 		}
 	}
 
+	if err := ValidateModelTarget(m.execPlan.Environment.Schema, a); err != nil {
+		return m.fail(a.Name, err)
+	}
+
 	// 5. Route materialisation type → DDL
 	ddl, err := m.buildDDL(ctx, a, matType, targetSchema, targetTable, compiledSQL)
 	if err != nil {
 		return m.fail(a.Name, err)
+	}
+	// Generators signal failure with an empty string (plugin RPC error) or a
+	// "-- error:" comment; executing either would silently do nothing.
+	if strings.TrimSpace(ddl) == "" || strings.HasPrefix(strings.TrimSpace(ddl), "-- error") {
+		return m.fail(a.Name, fmt.Errorf("failed to generate DDL for model %s: %s", a.Name, strings.TrimSpace(ddl)))
 	}
 
 	// 6. Execute DDL

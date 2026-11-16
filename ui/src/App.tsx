@@ -63,7 +63,7 @@ function App() {
   };
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/dag')
+    fetch('/api/dag')
       .then(res => res.json())
       .then(data => {
         const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(

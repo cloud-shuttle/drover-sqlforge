@@ -2,6 +2,9 @@ package virtual
 
 import (
 	"context"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
@@ -23,6 +26,7 @@ type RunnerGRPCPlugin struct {
 }
 
 func (p *RunnerGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
+	exitWhenOrphaned()
 	proto.RegisterRunnerPluginServer(s, &GRPCServer{Impl: p.Impl})
 	return nil
 }
@@ -135,22 +139,37 @@ func (m *GRPCServer) Exec(ctx context.Context, req *proto.ExecRequest) (*proto.E
 }
 
 func (m *GRPCServer) CreateSchemaDDL(ctx context.Context, req *proto.CreateSchemaRequest) (*proto.DDLResponse, error) {
+	if err := validateSchemaArg(req.Schema); err != nil {
+		return nil, err
+	}
 	return &proto.DDLResponse{Ddl: m.Impl.CreateSchemaDDL(req.Schema)}, nil
 }
 
 func (m *GRPCServer) CreateTableDDL(ctx context.Context, req *proto.CreateTableRequest) (*proto.DDLResponse, error) {
+	if err := validateTargetArgs(req.Schema, req.Table); err != nil {
+		return nil, err
+	}
 	return &proto.DDLResponse{Ddl: m.Impl.CreateTableDDL(req.Schema, req.Table, req.SelectSql)}, nil
 }
 
 func (m *GRPCServer) CreateViewDDL(ctx context.Context, req *proto.CreateViewRequest) (*proto.DDLResponse, error) {
+	if err := validateTargetArgs(req.Schema, req.Table); err != nil {
+		return nil, err
+	}
 	return &proto.DDLResponse{Ddl: m.Impl.CreateViewDDL(req.Schema, req.Table, req.SelectSql)}, nil
 }
 
 func (m *GRPCServer) CreateMaterializedViewDDL(ctx context.Context, req *proto.CreateMaterializedViewRequest) (*proto.DDLResponse, error) {
+	if err := validateTargetArgs(req.Schema, req.Table); err != nil {
+		return nil, err
+	}
 	return &proto.DDLResponse{Ddl: m.Impl.CreateMaterializedViewDDL(req.Schema, req.Table, req.SelectSql)}, nil
 }
 
 func (m *GRPCServer) CreateStreamingTableDDL(ctx context.Context, req *proto.CreateStreamingTableRequest) (*proto.DDLResponse, error) {
+	if err := validateTargetArgs(req.Schema, req.Table); err != nil {
+		return nil, err
+	}
 	return &proto.DDLResponse{Ddl: m.Impl.CreateStreamingTableDDL(req.Schema, req.Table, req.Config)}, nil
 }
 
@@ -160,10 +179,33 @@ func (m *GRPCServer) TableExists(ctx context.Context, req *proto.TableExistsRequ
 }
 
 func (m *GRPCServer) CreateIncrementalMergeDDL(ctx context.Context, req *proto.CreateIncrementalMergeRequest) (*proto.DDLResponse, error) {
+	if err := validateTargetArgs(req.Schema, req.Table); err != nil {
+		return nil, err
+	}
 	return &proto.DDLResponse{Ddl: m.Impl.CreateIncrementalMergeDDL(req.Schema, req.Table, req.SelectSql, req.Config)}, nil
 }
 
 func (m *GRPCServer) QueryCount(ctx context.Context, req *proto.QueryCountRequest) (*proto.QueryCountResponse, error) {
 	count, err := m.Impl.QueryCount(ctx, req.Sql)
 	return &proto.QueryCountResponse{Count: int64(count)}, err
+}
+
+// validateSchemaArg and validateTargetArgs are a defence-in-depth check in
+// every plugin process: the core validates identifiers before calling, but a
+// plugin must not generate DDL from names that are not bare identifiers.
+func validateSchemaArg(schema string) error {
+	if err := sqlident.ValidateQualified("schema", schema); err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	return nil
+}
+
+func validateTargetArgs(schema, table string) error {
+	if err := validateSchemaArg(schema); err != nil {
+		return err
+	}
+	if err := sqlident.ValidateIdentifier("table", table); err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	return nil
 }

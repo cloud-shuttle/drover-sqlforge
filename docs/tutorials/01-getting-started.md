@@ -23,7 +23,7 @@ surface: repo-docs
 
 You'll need:
 
-- **Go 1.22+** — check with `go version`
+- **Go 1.26+** — check with `go version`
 - **Git**
 - No database server required — this tutorial uses DuckDB, which runs entirely in-memory.
 

@@ -3,10 +3,15 @@ package snapshot
 import (
 	"fmt"
 	"strings"
+
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
 )
 
 // BuildRun returns ordered SQL statements for one snapshot execution.
 func BuildRun(dialect, schema, table string, exists bool, sourceSQL string, cfg ResolvedConfig) ([]string, error) {
+	if err := validateRun(schema, table, cfg); err != nil {
+		return nil, err
+	}
 	qualified := fmt.Sprintf("%s.%s", schema, table)
 	staging := fmt.Sprintf("sqlforge_snapshot_staging_%s", table)
 
@@ -34,6 +39,30 @@ func BuildRun(dialect, schema, table string, exists bool, sourceSQL string, cfg 
 	default:
 		return nil, fmt.Errorf("unsupported strategy %q", cfg.Strategy)
 	}
+}
+
+// validateRun checks every name BuildRun interpolates into SQL.
+func validateRun(schema, table string, cfg ResolvedConfig) error {
+	if err := sqlident.ValidateQualified("schema", schema); err != nil {
+		return err
+	}
+	if err := sqlident.ValidateIdentifier("snapshot", table); err != nil {
+		return err
+	}
+	if err := sqlident.ValidateColumnList("unique_key", cfg.UniqueKey); err != nil {
+		return err
+	}
+	if cfg.UpdatedAt != "" {
+		if err := sqlident.ValidateIdentifier("updated_at column", cfg.UpdatedAt); err != nil {
+			return err
+		}
+	}
+	for _, c := range cfg.CheckCols {
+		if err := sqlident.ValidateIdentifier("check_cols column", c); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func initialBuildSQL(qualified, sourceSQL string) string {

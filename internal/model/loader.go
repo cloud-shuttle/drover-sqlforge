@@ -2,12 +2,14 @@ package model
 
 import (
 	"bufio"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
 )
 
 // LoadModels walks the models directory and parses .sql files
@@ -25,6 +27,13 @@ func LoadModels(dir string, p *parser.Parser) ([]*Asset, error) {
 		relPath, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
+		}
+
+		// The model name (file name) becomes a table identifier in generated
+		// SQL, so reject anything that is not a bare identifier up front.
+		name := strings.TrimSuffix(d.Name(), ".sql")
+		if err := sqlident.ValidateIdentifier("model", name); err != nil {
+			return fmt.Errorf("%s: %w", path, err)
 		}
 
 		asset, err := parseFile(path, relPath, p)

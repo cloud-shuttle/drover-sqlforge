@@ -3,15 +3,20 @@ package main
 import (
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/cloud-shuttle/drover-sqlforge/internal/api"
 	"github.com/cloud-shuttle/drover-sqlforge/ui"
 	"github.com/spf13/cobra"
 )
 
-var uiPortFlag string
+var (
+	uiPortFlag string
+	uiHostFlag string
+)
 
 var uiCmd = &cobra.Command{
 	Use:   "ui [environment]",
@@ -36,34 +41,33 @@ var uiCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// 1. API routes
-		http.HandleFunc("/api/dag", api.ServeDAG(rt.DAG))
-		http.HandleFunc("/api/models/", func(w http.ResponseWriter, r *http.Request) {
-			// Basic router for /api/models/...
-			if len(r.URL.Path) > 12 && r.URL.Path[len(r.URL.Path)-8:] == "/preview" {
-				api.ServeModelPreview(rt.VMgr.Runner(), env.Schema)(w, r)
-			} else {
-				api.ServeModelDetails(rt.DAG)(w, r)
-			}
-		})
-
-		// 2. Serve embedded UI
 		distFS, err := fs.Sub(ui.Assets, "dist")
 		if err != nil {
 			fmt.Printf("Error loading embedded UI (Did you run 'npm run build' in ui/?): %v\n", err)
 			os.Exit(1)
 		}
 
-		http.Handle("/", http.FileServer(http.FS(distFS)))
+		handler := newUIHandler(rt.DAG, rt.VMgr.Runner(), env.Schema, distFS, uiHostFlag)
 
 		port := "8080"
 		if uiPortFlag != "" {
 			port = uiPortFlag
 		}
-		fmt.Printf("\n🚀 SQLForge Web GUI running at http://localhost:%s\n", port)
+		bind := net.JoinHostPort(uiHostFlag, port)
+		if !api.IsLoopbackHost(uiHostFlag) {
+			fmt.Printf("⚠️  Binding the Web GUI to %s exposes model SQL and warehouse previews to the network.\n", uiHostFlag)
+		}
+		fmt.Printf("\n🚀 SQLForge Web GUI running at http://%s\n", bind)
 
-		err = http.ListenAndServe(":"+port, nil)
-		if err != nil {
+		srv := &http.Server{
+			Addr:              bind,
+			Handler:           handler,
+			ReadHeaderTimeout: 10 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      2 * time.Minute,
+			IdleTimeout:       2 * time.Minute,
+		}
+		if err := srv.ListenAndServe(); err != nil {
 			fmt.Printf("Server failed: %v\n", err)
 			os.Exit(1)
 		}
@@ -72,5 +76,6 @@ var uiCmd = &cobra.Command{
 
 func init() {
 	uiCmd.Flags().StringVarP(&uiPortFlag, "port", "p", "8080", "Port to run the SQLForge Web GUI on")
+	uiCmd.Flags().StringVar(&uiHostFlag, "host", "127.0.0.1", "Interface to bind (non-loopback exposes the GUI to the network)")
 	rootCmd.AddCommand(uiCmd)
 }

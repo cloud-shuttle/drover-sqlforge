@@ -56,7 +56,7 @@ func TestMatches(t *testing.T) {
 
 func TestNotNullCheck_SingleColumn(t *testing.T) {
 	check := notNullCheck{}
-	qs := check.Queries("myschema", "orders", "test_not_null", "user_id", nil)
+	qs := check.Queries("duckdb", "myschema", "orders", "test_not_null", "user_id", nil)
 	if len(qs) != 1 {
 		t.Fatalf("expected 1 query, got %d", len(qs))
 	}
@@ -67,7 +67,7 @@ func TestNotNullCheck_SingleColumn(t *testing.T) {
 
 func TestNotNullCheck_MultiColumn(t *testing.T) {
 	check := notNullCheck{}
-	qs := check.Queries("s", "t", "test_not_null", "user_id, order_date", nil)
+	qs := check.Queries("duckdb", "s", "t", "test_not_null", "user_id, order_date", nil)
 	if len(qs) != 2 {
 		t.Fatalf("expected 2 queries for 2 columns, got %d", len(qs))
 	}
@@ -81,7 +81,7 @@ func TestNotNullCheck_MultiColumn(t *testing.T) {
 
 func TestNotNullCheck_FailMsg(t *testing.T) {
 	check := notNullCheck{}
-	qs := check.Queries("s", "t", "test_not_null", "email", nil)
+	qs := check.Queries("duckdb", "s", "t", "test_not_null", "email", nil)
 	err := qs[0].onFail(7)
 	if err == nil {
 		t.Fatal("expected non-nil error from onFail")
@@ -96,7 +96,7 @@ func TestNotNullCheck_FailMsg(t *testing.T) {
 
 func TestUniqueCheck_SQL(t *testing.T) {
 	check := uniqueCheck{}
-	qs := check.Queries("s", "t", "test_unique", "order_id", nil)
+	qs := check.Queries("duckdb", "s", "t", "test_unique", "order_id", nil)
 	if len(qs) != 1 {
 		t.Fatalf("expected 1 query, got %d", len(qs))
 	}
@@ -110,7 +110,7 @@ func TestUniqueCheck_SQL(t *testing.T) {
 
 func TestUniqueCheck_FailMsg(t *testing.T) {
 	check := uniqueCheck{}
-	qs := check.Queries("s", "t", "test_unique", "order_id", nil)
+	qs := check.Queries("duckdb", "s", "t", "test_unique", "order_id", nil)
 	err := qs[0].onFail(3)
 	msg := err.Error()
 	for _, want := range []string{"order_id", "3", "unique", "duplicate"} {
@@ -122,7 +122,7 @@ func TestUniqueCheck_FailMsg(t *testing.T) {
 
 func TestAcceptedValuesCheck_SQL(t *testing.T) {
 	check := acceptedValuesCheck{}
-	qs := check.Queries("s", "t", "test_accepted_values_status", "active, inactive, pending", nil)
+	qs := check.Queries("duckdb", "s", "t", "test_accepted_values_status", "active, inactive, pending", nil)
 	if len(qs) != 1 {
 		t.Fatalf("expected 1 query, got %d", len(qs))
 	}
@@ -140,7 +140,7 @@ func TestAcceptedValuesCheck_SQL(t *testing.T) {
 func TestRelationshipCheck_ToSyntax(t *testing.T) {
 	check := relationshipCheck{}
 	plan := minimalPlan("sf__test", "stg_users", "staging")
-	qs := check.Queries("sf__test", "customer_360", "test_relationship", "user_id to stg_users.user_id", plan)
+	qs := check.Queries("duckdb", "sf__test", "customer_360", "test_relationship", "user_id to stg_users.user_id", plan)
 	if len(qs) != 1 {
 		t.Fatalf("expected 1 query, got %d", len(qs))
 	}
@@ -155,7 +155,7 @@ func TestRelationshipCheck_ToSyntax(t *testing.T) {
 func TestRelationshipCheck_ArrowSyntax(t *testing.T) {
 	check := relationshipCheck{}
 	plan := minimalPlan("sf__test", "stg_users", "staging")
-	qs := check.Queries("sf__test", "customer_360", "test_relationship", "user_id->stg_users.user_id", plan)
+	qs := check.Queries("duckdb", "sf__test", "customer_360", "test_relationship", "user_id->stg_users.user_id", plan)
 	if len(qs) != 1 {
 		t.Fatalf("expected 1 query for arrow syntax, got %d", len(qs))
 	}
@@ -163,7 +163,7 @@ func TestRelationshipCheck_ArrowSyntax(t *testing.T) {
 
 func TestRelationshipCheck_MalformedValue(t *testing.T) {
 	check := relationshipCheck{}
-	qs := check.Queries("s", "t", "test_relationship", "not valid at all", nil)
+	qs := check.Queries("duckdb", "s", "t", "test_relationship", "not valid at all", nil)
 	if qs != nil {
 		t.Errorf("expected nil for malformed value, got %v", qs)
 	}
@@ -232,7 +232,7 @@ func TestRunDataQualityTestsFromConfig_UnknownKey_Ignored(t *testing.T) {
 func TestProp_NotNull_SQLContainsColumn(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		col := rapid.StringMatching(`[a-z][a-z0-9_]{0,15}`).Draw(t, "col")
-		qs := notNullCheck{}.Queries("s", "t", "test_not_null", col, nil)
+		qs := notNullCheck{}.Queries("duckdb", "s", "t", "test_not_null", col, nil)
 		if len(qs) != 1 {
 			t.Fatalf("expected 1 query, got %d", len(qs))
 		}
@@ -248,7 +248,7 @@ func TestProp_NotNull_SQLContainsColumn(t *testing.T) {
 func TestProp_Unique_GroupByHavingInvariant(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		col := rapid.StringMatching(`[a-z][a-z0-9_]{0,15}`).Draw(t, "col")
-		qs := uniqueCheck{}.Queries("s", "t", "test_unique", col, nil)
+		qs := uniqueCheck{}.Queries("duckdb", "s", "t", "test_unique", col, nil)
 		if len(qs) != 1 {
 			t.Fatalf("expected 1 query, got %d", len(qs))
 		}
@@ -266,7 +266,7 @@ func TestProp_AcceptedValues_AllValuesQuoted(t *testing.T) {
 		colName := rapid.StringMatching(`[a-z]{1,10}`).Draw(t, "col")
 		joined := strings.Join(vals, ", ")
 
-		qs := acceptedValuesCheck{}.Queries("s", "t", "test_accepted_values_"+colName, joined, nil)
+		qs := acceptedValuesCheck{}.Queries("duckdb", "s", "t", "test_accepted_values_"+colName, joined, nil)
 		if len(qs) != 1 {
 			t.Fatalf("expected 1 query, got %d", len(qs))
 		}

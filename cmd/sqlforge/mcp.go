@@ -2,18 +2,39 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/cloud-shuttle/drover-sqlforge/internal/mcp"
 	"github.com/spf13/cobra"
 )
+
+// mcpAPIKeyEnv is the preferred way to pass the MCP API key: flags are
+// visible in process listings and shell history.
+const mcpAPIKeyEnv = "SQLFORGE_MCP_API_KEY"
 
 var (
 	mcpPort   string
 	mcpLocal  bool
 	mcpAPIKey string
 )
+
+// resolveMCPAPIKey prefers the --api-key flag when set, else the environment.
+func resolveMCPAPIKey(flagValue string, getenv func(string) string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	return getenv(mcpAPIKeyEnv)
+}
+
+func mcpBindHost(local bool) string {
+	if local {
+		return "127.0.0.1"
+	}
+	return "0.0.0.0"
+}
 
 var mcpCmd = &cobra.Command{
 	Use:   "mcp",
@@ -26,6 +47,13 @@ var mcpCmd = &cobra.Command{
 			envName = args[0]
 		}
 
+		apiKey := resolveMCPAPIKey(mcpAPIKey, os.Getenv)
+		host := mcpBindHost(mcpLocal)
+		if err := mcp.ValidateBind(host, apiKey); err != nil {
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
+
 		fmt.Printf("Loading context for environment: %s\n", envName)
 		rt, err := loadRuntime(envName)
 		if err != nil {
@@ -34,27 +62,29 @@ var mcpCmd = &cobra.Command{
 		}
 		defer rt.Close()
 
-		server := mcp.NewServer(mcpAPIKey, rt)
+		server := mcp.NewServer(apiKey, rt)
 
-		// Register the JSON-RPC route
-		http.Handle("/mcp", server)
+		mux := http.NewServeMux()
+		mux.Handle("/mcp", server)
 
-		// Binding address
-		addr := "0.0.0.0"
-		if mcpLocal {
-			addr = "127.0.0.1"
-		}
-		bind := fmt.Sprintf("%s:%s", addr, mcpPort)
+		bind := net.JoinHostPort(host, mcpPort)
 
 		fmt.Printf("🚀 SQLForge MCP Server running at http://%s/mcp\n", bind)
-		if mcpAPIKey != "" {
+		if apiKey != "" {
 			fmt.Printf("🔒 Authentication: Enabled (API Key required)\n")
 		} else {
-			fmt.Printf("⚠️  Authentication: Disabled (Local Mode)\n")
+			fmt.Printf("⚠️  Authentication: Disabled (loopback only)\n")
 		}
 
-		err = http.ListenAndServe(bind, nil)
-		if err != nil {
+		srv := &http.Server{
+			Addr:              bind,
+			Handler:           mux,
+			ReadHeaderTimeout: 10 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      10 * time.Minute, // apply_change can run long warehouse DDL
+			IdleTimeout:       2 * time.Minute,
+		}
+		if err := srv.ListenAndServe(); err != nil {
 			fmt.Printf("Server failed: %v\n", err)
 			os.Exit(1)
 		}
@@ -63,8 +93,8 @@ var mcpCmd = &cobra.Command{
 
 func init() {
 	mcpCmd.Flags().StringVar(&mcpPort, "port", "8080", "Port to bind the MCP server to")
-	mcpCmd.Flags().BoolVar(&mcpLocal, "local", true, "Bind to 127.0.0.1 instead of 0.0.0.0")
-	mcpCmd.Flags().StringVar(&mcpAPIKey, "api-key", "", "API Key required for access")
+	mcpCmd.Flags().BoolVar(&mcpLocal, "local", true, "Bind to 127.0.0.1 instead of 0.0.0.0 (non-local requires an API key)")
+	mcpCmd.Flags().StringVar(&mcpAPIKey, "api-key", "", "API key required for access (prefer the "+mcpAPIKeyEnv+" environment variable)")
 
 	rootCmd.AddCommand(mcpCmd)
 }

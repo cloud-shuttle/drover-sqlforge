@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlident"
 	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 )
 
@@ -14,6 +15,9 @@ import (
 type qualityQuery struct {
 	SQL    string
 	onFail func(count int) error
+	// err is set instead of SQL when the config value is unsafe to
+	// interpolate (e.g. an invalid column name).
+	err error
 }
 
 // QualityCheck handles one category of data quality assertion declared in
@@ -21,10 +25,11 @@ type qualityQuery struct {
 //
 // Matches reports whether this check owns the given model config key.
 // Queries generates the SQL assertions and failure generators for that
-// key/value pair. Returning nil is valid (e.g. a malformed value).
+// key/value pair. Returning nil is valid (e.g. a malformed value). dialect is
+// the runner name, used to escape string literals.
 type QualityCheck interface {
 	Matches(key string) bool
-	Queries(schema, table, key, val string, plan *ExecutionPlan) []qualityQuery
+	Queries(dialect, schema, table, key, val string, plan *ExecutionPlan) []qualityQuery
 }
 
 // registeredChecks is the ordered registry of all quality check types.
@@ -45,7 +50,10 @@ func RunDataQualityTestsFromConfig(ctx context.Context, runner virtual.Runner, c
 			if !check.Matches(k) {
 				continue
 			}
-			for _, q := range check.Queries(schema, table, k, v, execPlan) {
+			for _, q := range check.Queries(runner.Name(), schema, table, k, v, execPlan) {
+				if q.err != nil {
+					return fmt.Errorf("data quality test %s: %w", k, q.err)
+				}
 				count, err := runner.QueryCount(ctx, q.SQL)
 				if err != nil {
 					return err
@@ -66,10 +74,13 @@ type notNullCheck struct{}
 
 func (notNullCheck) Matches(key string) bool { return key == "test_not_null" }
 
-func (notNullCheck) Queries(schema, table, _, val string, _ *ExecutionPlan) []qualityQuery {
+func (notNullCheck) Queries(_, schema, table, _, val string, _ *ExecutionPlan) []qualityQuery {
 	var out []qualityQuery
 	for _, col := range splitCSV(val) {
 		col := col // pin loop variable for closure
+		if err := sqlident.ValidateIdentifier("not_null column", col); err != nil {
+			return []qualityQuery{{err: err}}
+		}
 		out = append(out, qualityQuery{
 			SQL: fmt.Sprintf(
 				"SELECT COUNT(*) FROM %s.%s WHERE %s IS NULL",
@@ -92,10 +103,13 @@ type uniqueCheck struct{}
 
 func (uniqueCheck) Matches(key string) bool { return key == "test_unique" }
 
-func (uniqueCheck) Queries(schema, table, _, val string, _ *ExecutionPlan) []qualityQuery {
+func (uniqueCheck) Queries(_, schema, table, _, val string, _ *ExecutionPlan) []qualityQuery {
 	var out []qualityQuery
 	for _, col := range splitCSV(val) {
 		col := col
+		if err := sqlident.ValidateIdentifier("unique column", col); err != nil {
+			return []qualityQuery{{err: err}}
+		}
 		out = append(out, qualityQuery{
 			SQL: fmt.Sprintf(
 				"SELECT COUNT(*) FROM (SELECT %s, COUNT(*) as _c FROM %s.%s GROUP BY %s HAVING _c > 1)",
@@ -120,11 +134,14 @@ func (acceptedValuesCheck) Matches(key string) bool {
 	return strings.HasPrefix(key, "test_accepted_values_")
 }
 
-func (acceptedValuesCheck) Queries(schema, table, key, val string, _ *ExecutionPlan) []qualityQuery {
+func (acceptedValuesCheck) Queries(dialect, schema, table, key, val string, _ *ExecutionPlan) []qualityQuery {
 	col := strings.TrimPrefix(key, "test_accepted_values_")
+	if err := sqlident.ValidateIdentifier("accepted_values column", col); err != nil {
+		return []qualityQuery{{err: err}}
+	}
 	var quoted []string
 	for _, v := range splitCSV(val) {
-		quoted = append(quoted, fmt.Sprintf("'%s'", v))
+		quoted = append(quoted, sqlident.QuoteLiteral(dialect, v))
 	}
 	inClause := strings.Join(quoted, ", ")
 	return []qualityQuery{{
@@ -149,23 +166,15 @@ func (relationshipCheck) Matches(key string) bool {
 	return strings.HasPrefix(key, "test_relationship")
 }
 
-func (relationshipCheck) Queries(schema, table, _, val string, execPlan *ExecutionPlan) []qualityQuery {
+func (relationshipCheck) Queries(_, schema, table, _, val string, execPlan *ExecutionPlan) []qualityQuery {
 	// Parse "localCol to parentModel.parentCol" or "localCol->parentModel.parentCol"
-	parts := strings.Split(val, " to ")
-	if len(parts) != 2 {
-		parts = strings.Split(val, "->")
-	}
-	if len(parts) != 2 {
+	localCol, parentModel, parentCol, ok := parseRelationship(val)
+	if !ok {
 		return nil // malformed value — skip silently (matches prior behaviour)
 	}
-
-	localCol := strings.TrimSpace(parts[0])
-	parentParts := strings.Split(strings.TrimSpace(parts[1]), ".")
-	if len(parentParts) != 2 {
-		return nil
+	if err := validateRelationship(val); err != nil {
+		return []qualityQuery{{err: err}}
 	}
-	parentModel := strings.TrimSpace(parentParts[0])
-	parentCol := strings.TrimSpace(parentParts[1])
 
 	envSchema := schema
 	if execPlan != nil {

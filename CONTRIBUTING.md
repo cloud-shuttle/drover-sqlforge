@@ -27,7 +27,7 @@ The repository is organized following standard Go project layouts:
 
 ## 2. Setting Up Your Environment
 
-You need **Go 1.23+** installed.
+You need **Go 1.26+** installed (see `go.mod`).
 
 ```bash
 # Clone the repository

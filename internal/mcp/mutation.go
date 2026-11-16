@@ -8,6 +8,7 @@ import (
 	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
 	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
 	"github.com/cloud-shuttle/drover-sqlforge/internal/project"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlguard"
 )
 
 func planChange(rt *project.Runtime, store *PlanStore, modelName, proposedSQL string) (map[string]interface{}, error) {
@@ -18,6 +19,12 @@ func planChange(rt *project.Runtime, store *PlanStore, modelName, proposedSQL st
 	existing, ok := rt.DAG.Nodes[modelName]
 	if !ok {
 		return nil, fmt.Errorf("model %s not found", modelName)
+	}
+
+	// Agent-proposed SQL is wrapped in CREATE ... AS and executed by
+	// apply_change, so it must be a single read-only SELECT.
+	if err := sqlguard.ValidateSelect(proposedSQL); err != nil {
+		return nil, err
 	}
 
 	ast, err := rt.Parser.ParseToAST(proposedSQL)
@@ -50,7 +57,7 @@ func planChange(rt *project.Runtime, store *PlanStore, modelName, proposedSQL st
 		return nil, fmt.Errorf("generate plan: %w", err)
 	}
 
-	planID, err := store.Put(execPlan)
+	planID, err := store.PutProposal(execPlan, modelName, proposedSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -70,9 +77,14 @@ func applyChange(ctx context.Context, rt *project.Runtime, store *PlanStore, pla
 		return nil, fmt.Errorf("no project runtime loaded")
 	}
 
-	execPlan, ok := store.Get(planID)
+	pending, ok := store.GetPending(planID)
 	if !ok {
 		return nil, fmt.Errorf("plan_id %q not found or expired", planID)
+	}
+	execPlan := pending.Plan
+	if err := revalidateProposal(pending); err != nil {
+		store.Delete(planID)
+		return nil, err
 	}
 
 	if len(execPlan.ChangedModels) == 0 && len(execPlan.Impacted) == 0 {
@@ -95,6 +107,28 @@ func applyChange(ctx context.Context, rt *project.Runtime, store *PlanStore, pla
 		"status":      "applied",
 		"applied":     len(execPlan.ChangedModels) + len(execPlan.Impacted),
 	}, nil
+}
+
+// revalidateProposal re-checks the stored proposal immediately before apply
+// and confirms the plan executes exactly the SQL that was validated.
+func revalidateProposal(p *PendingPlan) error {
+	if p.ModelName == "" {
+		return fmt.Errorf("plan has no recorded proposal; create it with plan_change")
+	}
+	if err := sqlguard.ValidateSelect(p.ProposedSQL); err != nil {
+		return err
+	}
+	if p.Plan == nil {
+		return nil
+	}
+	for _, group := range [][]*model.Asset{p.Plan.ChangedModels, p.Plan.Impacted} {
+		for _, a := range group {
+			if a != nil && a.Name == p.ModelName && a.SQL != p.ProposedSQL {
+				return fmt.Errorf("plan for model %s does not match the validated proposal", p.ModelName)
+			}
+		}
+	}
+	return nil
 }
 
 func replaceAsset(assets []*model.Asset, modified *model.Asset) []*model.Asset {

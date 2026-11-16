@@ -1,5 +1,7 @@
 # SQLForge Roadmap
 
+> **Live roadmap:** planned and in-progress work is tracked in GitHub issues under [epic #65](https://github.com/cloud-shuttle/drover-sqlforge/issues/65). This file records what has shipped. Items are only ticked when the code exists on `main`. The 2026-11 audit (#60) corrected the earlier entries that claimed features which were never built.
+
 ## ✅ Phase 1: Foundation & MVP Engine (Complete)
 - [x] **Polyglot WASM Parser Integration**: Cross-platform, sub-millisecond AST generation for model extraction.
 - [x] **Model Loader & DAG Builder**: Structural reference resolution and chronological dependency tracking.
@@ -25,11 +27,13 @@
 - [x] **Incremental Materializations**: Robust cross-dialect support for complex incremental models (MERGE, UPSERT, Insert/Overwrite) utilizing AST diffing.
 - [x] **CI/CD Integrations**: Pre-built GitHub Actions for spinning up isolated, zero-copy preview environments on every PR.
 
-## ✅ Phase 4: Agentic Tier / MCP Server (Complete)
+## 🟡 Phase 4: Agentic Tier / MCP Server (Partially complete)
 - [x] **MCP Server**: Embed an HTTP server to expose SQLForge as a Model Context Protocol service for autonomous agents.
 - [x] **MCP Tool Registry**: Read and mutation tools (`list_models`, `query_metric`, `plan_change`, `apply_change`, etc.); ephemeral plan store for `apply_change` ([ADR 0002](docs/adr/0002-cli-invocation-drover-code-integration.md)).
-- [x] **Interactive Execution**: WebSocket endpoints for live plan approval and step-by-step execution feedback for agents.
-- [x] **Security & Observability**: API key auth, rate limiting, and comprehensive request auditing for all agent interactions.
+- [x] **API key auth**: A single static bearer key (`--api-key`). Hardening is in progress in #52.
+- [ ] **Interactive Execution**: WebSocket endpoints for live plan approval and step-by-step feedback. *Not implemented: the MCP server is plain JSON-RPC over HTTP POST.*
+- [ ] **Rate limiting**: *Not implemented.*
+- [ ] **Request auditing**: a structured audit log per tool call, with caller identity from Drover Gateway. *Not implemented; tracked in #62.*
 
 ## ✅ Phase 5: Lineage, Stability & Developer Onboarding (Complete)
 - [x] **Column lineage CLI**: `sqlforge lineage [model]` with structural SELECT/FROM parsing.
@@ -58,7 +62,10 @@ Before graduating from alpha to beta, we are targeting measurable improvements t
 | `internal/snapshot` | 29.9% | **≥ 50%** |
 | `internal/virtual` | 26.0% | **≥ 40%** |
 
-Coverage targets are enforced by the quality gate (`make quality-gate` / CI `quality-gate` job).
+CI (the `quality-gate` job) and `make quality-gate` enforce **per-package floors** from [`quality/coverage-floors.json`](quality/coverage-floors.json). The floors start just below today's coverage and are raised toward these targets in the PRs that add the tests. The same job runs a per-function CRAP gate ([`tools/crap`](tools/crap)):
+- Every Go function must score **≤ 30**.
+- The 27 legacy functions above that are pinned in [`quality/crap-baseline.json`](quality/crap-baseline.json) and may not get worse.
+- `make quality-baseline` lowers those ceilings as tests improve.
 
 Additional v0.2.0 scope:
 - [ ] Reference docs: `docs/reference/sqlforge-yml.md` and `docs/reference/model-config.md`

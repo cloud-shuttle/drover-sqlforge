@@ -6,6 +6,20 @@ on:
   pull_request:
 
 jobs:
+  smoke:
+    # Consumer-facing end-to-end check (#59): build sqlforge + the DuckDB
+    # plugin, run examples/agentic_retail_2026 through plan, apply, test,
+    # query and docs generate against a DuckDB file, and assert the results.
+    name: Consumer smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: make smoke
+        run: make smoke
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -22,12 +36,10 @@ jobs:
           go-package: "./..."
       - name: Build plugins and CLI for e2e tests
         # Tests exec ./sqlforge and the ./sqlforge-plugin-* gRPC binaries at the
-        # repo root (see Makefile `plugins` / `e2e`). Build them for this runner
-        # instead of relying on committed binaries built for another OS/arch.
+        # repo root. They are not committed (gitignored); `make plugins` is the
+        # single source of truth for the plugin list, so CI exercises it too.
         run: |
-          for p in duckdb databricks snowflake doris velodb; do
-            go build -o "sqlforge-plugin-$p" "./cmd/plugins/sqlforge-plugin-$p"
-          done
+          make plugins
           go build -o sqlforge ./cmd/sqlforge
       - name: Test (Unit, Snapshot, and E2E)
         env:
@@ -65,8 +77,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run quality gate
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Run quality gate (CRAP ratchet)
+        # Per-function CRAP via tools/crap: every function must score <= 30,
+        # except legacy functions pinned in quality/crap-baseline.json, which
+        # may not get worse. Same check as `make quality-gate`.
+        run: go run ./tools/crap -coverage coverage.out -baseline quality/crap-baseline.json
+
+      - name: Coverage floors
         run: |
-          python3 scripts/quality-gate.py . \
+          python3 scripts/coverage-floors.py \
             --coverage coverage.out \
-            --limit 10000
+            --floors quality/coverage-floors.json
