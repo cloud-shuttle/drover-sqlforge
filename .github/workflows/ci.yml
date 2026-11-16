@@ -6,6 +6,20 @@ on:
   pull_request:
 
 jobs:
+  smoke:
+    # Consumer-facing end-to-end check (#59): build sqlforge + the DuckDB
+    # plugin, run examples/agentic_retail_2026 through plan, apply, test,
+    # query and docs generate against a DuckDB file, and assert the results.
+    name: Consumer smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: make smoke
+        run: make smoke
+
   test:
     runs-on: ubuntu-latest
     steps:

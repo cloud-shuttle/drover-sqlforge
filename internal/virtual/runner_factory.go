@@ -42,6 +42,10 @@ func loadRunnerPlugin(dialect string, dsn string) (Runner, error) {
 		},
 		Cmd:              cmd,
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+		// Managed lets plugin.CleanupClients (deferred in cmd/sqlforge main)
+		// stop the plugin on exit. Without it every CLI run leaked a plugin
+		// process, which for DuckDB kept the database file locked.
+		Managed: true,
 	})
 
 	rpcClient, err := client.Client()
@@ -56,5 +60,17 @@ func loadRunnerPlugin(dialect string, dsn string) (Runner, error) {
 		return nil, fmt.Errorf("failed to dispense runner plugin %s: %w", cmdName, err)
 	}
 
-	return raw.(Runner), nil
+	return &pluginRunner{Runner: raw.(Runner), client: client}, nil
+}
+
+// pluginRunner is a Runner backed by a plugin subprocess. Close stops it.
+type pluginRunner struct {
+	Runner
+	client *plugin.Client
+}
+
+// Close stops the plugin process. It is safe to call more than once.
+func (p *pluginRunner) Close() error {
+	p.client.Kill()
+	return nil
 }

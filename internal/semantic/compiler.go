@@ -8,6 +8,10 @@ import (
 
 type Compiler struct {
 	EnvironmentSchema string // e.g. "sqlforge__peter_dev"
+	// Relation, when set, is used verbatim as the FROM target instead of
+	// EnvironmentSchema + "." + metric.Model. Callers set it to the model's
+	// resolved warehouse name (folder/custom schema, alias, database).
+	Relation string
 }
 
 func NewCompiler(schema string) *Compiler {
@@ -51,11 +55,13 @@ func (c *Compiler) Compile(metric *Metric, requestedDims []string) (string, erro
 		groupStr = "\nGROUP BY " + strings.Join(groups, ", ")
 	}
 
-	schemaPrefix := ""
-	if c.EnvironmentSchema != "" {
-		schemaPrefix = c.EnvironmentSchema + "."
+	from := metric.Model
+	if c.Relation != "" {
+		from = c.Relation
+	} else if c.EnvironmentSchema != "" {
+		from = c.EnvironmentSchema + "." + metric.Model
 	}
 
-	query := fmt.Sprintf("SELECT\n    %s\nFROM %s%s%s;", selectStr, schemaPrefix, metric.Model, groupStr)
+	query := fmt.Sprintf("SELECT\n    %s\nFROM %s%s;", selectStr, from, groupStr)
 	return query, nil
 }

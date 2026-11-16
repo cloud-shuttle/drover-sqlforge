@@ -28,6 +28,12 @@ wasm:
 cli: build
 	./sqlforge --help
 
+# Consumer smoke test (#59): builds sqlforge + the DuckDB plugin itself and runs
+# examples/agentic_retail_2026 end to end against a DuckDB file. Needs CGO.
+.PHONY: smoke
+smoke:
+	go test -tags smoke -count=1 -v ./test/smoke/
+
 clean:
 	rm -f sqlforge $(addprefix sqlforge-plugin-,$(PLUGINS))
 	rm -rf .sqlforge target

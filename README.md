@@ -1,6 +1,6 @@
 # Drover SQLForge 🚀 (v0.1.0-alpha)
 
-> **Repo status (rationalization 2026-11-09):** STALE — HEAD 2026-05-26. Go data-transformation engine. Next: consumer-facing transformation smoke test before expanding scope. Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
+> **Repo status (2026-11-16):** active again after the 2026-11-09 rationalization marked it STALE. Every PR now runs a consumer-facing smoke test (`make smoke`): a fresh copy of the bundled example goes through plan → apply → test → query → docs on DuckDB. The roadmap is tracked in [epic #65](https://github.com/cloud-shuttle/drover-sqlforge/issues/65). Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
 
 [![CI](https://github.com/drover-org/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/drover-org/drover-sqlforge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
@@ -254,6 +254,7 @@ Key commands:
 ```bash
 go test ./...          # Unit tests
 make e2e               # Fast end-to-end CLI tests (DuckDB, milliseconds)
+make smoke             # Consumer smoke test: example project plan/apply/test/query/docs on DuckDB
 make integration       # Live ClickHouse integration tests (Docker required)
 make plugins           # Compile all warehouse plugin binaries
 ```

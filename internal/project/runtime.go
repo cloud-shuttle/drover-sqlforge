@@ -235,6 +235,9 @@ func (r *Runtime) Close() {
 	if r.Parser != nil {
 		r.Parser.Close()
 	}
+	if r.VMgr != nil {
+		_ = r.VMgr.Close()
+	}
 }
 
 // ExecutionPlan builds the current execution plan for the environment.
