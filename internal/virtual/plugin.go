@@ -23,6 +23,7 @@ type RunnerGRPCPlugin struct {
 }
 
 func (p *RunnerGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
+	exitWhenOrphaned()
 	proto.RegisterRunnerPluginServer(s, &GRPCServer{Impl: p.Impl})
 	return nil
 }

@@ -1,6 +1,7 @@
 package virtual
 
 import (
+	"io"
 	"context"
 
 	"github.com/drover-org/drover-sqlforge/internal/state"
@@ -31,6 +32,18 @@ func NewManager(runner Runner, stateMgr *state.Manager) *Manager {
 
 func (m *Manager) Runner() Runner {
 	return m.runner
+}
+
+// Close releases the runner's resources, stopping its plugin process if it
+// has one. Runners without resources to release are left alone.
+func (m *Manager) Close() error {
+	if m == nil || m.runner == nil {
+		return nil
+	}
+	if c, ok := m.runner.(io.Closer); ok {
+		return c.Close()
+	}
+	return nil
 }
 
 func (m *Manager) CreateVirtualEnv(ctx context.Context, envName, baseEnv string) error {

@@ -5,5 +5,8 @@ metrics:
     dimensions: [metric_date, country]
     materialize: true
   - name: revenue_per_user
-    expression: SUM(revenue) / NULLIF(COUNT(DISTINCT user_id), 0)
+    # ab_test_results is already aggregated per experiment/variant/day, so
+    # weight by its unique_users column rather than re-counting user_id.
+    expression: SUM(revenue) / NULLIF(SUM(unique_users), 0)
     model: ab_test_results
+    dimensions: [experiment_id, variant]

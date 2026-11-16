@@ -201,8 +201,17 @@ var queryCmd = &cobra.Command{
 			return
 		}
 
-		// 3. Compile ANSI SQL
+		// 3. Resolve where the metric's model actually lives (folder schema,
+		// custom schema, alias, database) so the SQL runs as printed.
 		compiler := semantic.NewCompiler(env.Schema)
+		if p, perr := parser.NewParser(context.Background()); perr == nil {
+			if assets, lerr := model.LoadModels("models", p); lerr == nil {
+				compiler.Relation = metricRelation(env.Schema, assets, metric.Model)
+			}
+			p.Close()
+		}
+
+		// 4. Compile ANSI SQL
 		sql, err := compiler.Compile(metric, dims)
 		if err != nil {
 			fmt.Printf("Error compiling query: %v\n", err)
@@ -548,4 +557,20 @@ var testCmd = &cobra.Command{
 			os.Exit(1)
 		}
 	},
+}
+
+// metricRelation returns the fully qualified warehouse name of modelName in
+// envSchema, or "" when the model is not among assets.
+func metricRelation(envSchema string, assets []*model.Asset, modelName string) string {
+	for _, a := range assets {
+		if a.Name != modelName {
+			continue
+		}
+		db, schema, table := plan.ResolveTarget(envSchema, a)
+		if db != "" {
+			return db + "." + schema + "." + table
+		}
+		return schema + "." + table
+	}
+	return ""
 }
