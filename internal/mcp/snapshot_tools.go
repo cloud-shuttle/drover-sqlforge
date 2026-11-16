@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/drover-org/drover-sqlforge/internal/project"
-	"github.com/drover-org/drover-sqlforge/internal/snapshot"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/project"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/snapshot"
 )
 
 // registerSnapshotTools registers MCP tools for managing and executing snapshots.

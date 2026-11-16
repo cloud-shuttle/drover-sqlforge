@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
 )
 
 // LoadModels walks the models directory and parses .sql files

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/drover-org/drover-sqlforge/internal/mcp"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/mcp"
 	"github.com/spf13/cobra"
 )
 

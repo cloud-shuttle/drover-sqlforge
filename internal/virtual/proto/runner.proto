@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package proto;
-option go_package = "github.com/drover-org/drover-sqlforge/internal/virtual/proto";
+option go_package = "github.com/cloud-shuttle/drover-sqlforge/internal/virtual/proto";
 
 service RunnerPlugin {
   rpc Name(Empty) returns (NameResponse);

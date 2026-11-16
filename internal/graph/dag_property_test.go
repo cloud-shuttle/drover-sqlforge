@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
 	"pgregory.net/rapid"
 )
 

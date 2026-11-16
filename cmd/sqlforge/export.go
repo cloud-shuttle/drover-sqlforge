@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/drover-org/drover-sqlforge/internal/plan"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
 )
 
 var exportOutputFlag string

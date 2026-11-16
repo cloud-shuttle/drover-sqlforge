@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/model"
-	"github.com/drover-org/drover-sqlforge/internal/parser"
-	"github.com/drover-org/drover-sqlforge/internal/project"
-	"github.com/drover-org/drover-sqlforge/internal/semantic"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/project"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/semantic"
 )
 
 func TestTools_ListModels(t *testing.T) {

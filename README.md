@@ -2,7 +2,7 @@
 
 > **Repo status (rationalization 2026-11-09):** STALE — HEAD 2026-05-26. Go data-transformation engine. Next: consumer-facing transformation smoke test before expanding scope. Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
 
-[![CI](https://github.com/drover-org/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/drover-org/drover-sqlforge/actions/workflows/ci.yml)
+[![CI](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
 [![Status](https://img.shields.io/badge/status-alpha-orange)](ROADMAP.md)
@@ -17,7 +17,7 @@
 
 ```bash
 # 1. Clone and build
-git clone https://github.com/drover-org/drover-sqlforge.git
+git clone https://github.com/cloud-shuttle/drover-sqlforge.git
 cd drover-sqlforge && make build && make plugins
 
 # 2. Run against the bundled example (DuckDB in-memory, no server needed)
@@ -74,7 +74,7 @@ That's it. Eight models built, quality tests run, fingerprints saved.
 ## Installation
 
 ```bash
-git clone https://github.com/drover-org/drover-sqlforge.git
+git clone https://github.com/cloud-shuttle/drover-sqlforge.git
 cd drover-sqlforge
 
 # Build the core CLI

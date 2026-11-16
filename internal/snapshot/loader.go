@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
 )
 
 // LoadSnapshots walks snapshots/ and parses .sql snapshot definitions.

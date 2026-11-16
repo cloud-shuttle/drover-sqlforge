@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/drover-org/drover-sqlforge/internal/api"
-	"github.com/drover-org/drover-sqlforge/ui"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/api"
+	"github.com/cloud-shuttle/drover-sqlforge/ui"
 	"github.com/spf13/cobra"
 )
 

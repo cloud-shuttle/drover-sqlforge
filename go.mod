@@ -1,4 +1,4 @@
-module github.com/drover-org/drover-sqlforge
+module github.com/cloud-shuttle/drover-sqlforge
 
 go 1.27.3
 

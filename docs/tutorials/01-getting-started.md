@@ -23,7 +23,7 @@ You'll need:
 Clone the repository and build the CLI:
 
 ```bash
-git clone https://github.com/drover-org/drover-sqlforge.git
+git clone https://github.com/cloud-shuttle/drover-sqlforge.git
 cd drover-sqlforge
 make build
 make plugins

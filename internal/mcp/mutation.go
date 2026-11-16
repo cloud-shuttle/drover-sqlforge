@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/model"
-	"github.com/drover-org/drover-sqlforge/internal/plan"
-	"github.com/drover-org/drover-sqlforge/internal/project"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/project"
 )
 
 func planChange(rt *project.Runtime, store *PlanStore, modelName, proposedSQL string) (map[string]interface{}, error) {

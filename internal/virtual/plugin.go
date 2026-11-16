@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/grpc"
 
-	"github.com/drover-org/drover-sqlforge/internal/virtual/proto"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual/proto"
 )
 
 // Handshake is a common handshake that is shared by plugin and host.

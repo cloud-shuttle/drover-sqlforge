@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/model"
-	"github.com/drover-org/drover-sqlforge/internal/state"
-	"github.com/drover-org/drover-sqlforge/internal/virtual"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/state"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 )
 
 // errMockExec is a sentinel error returned by MockRunner.Exec when ExecErr is set.

@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
-	"github.com/drover-org/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
 )
 
 // GenerateFingerprint creates a stable hash from a normalized AST and config map.

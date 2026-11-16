@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/drover-org/drover-sqlforge/internal/graph"
-	"github.com/drover-org/drover-sqlforge/internal/project"
-	"github.com/drover-org/drover-sqlforge/internal/semantic"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/graph"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/project"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/semantic"
 )
 
 // ToolSchema defines the JSON schema for the tool parameters

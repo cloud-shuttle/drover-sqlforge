@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/semantic"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/semantic"
 )
 
 func TestCompiler_ValidDimensions(t *testing.T) {

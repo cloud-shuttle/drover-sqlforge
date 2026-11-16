@@ -3,7 +3,7 @@ package virtual
 import (
 	"context"
 
-	"github.com/drover-org/drover-sqlforge/internal/state"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/state"
 )
 
 type Runner interface {

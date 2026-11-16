@@ -3,8 +3,8 @@ package mcp
 import (
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/plan"
-	"github.com/drover-org/drover-sqlforge/internal/state"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/state"
 )
 
 func TestPlanStorePutGetDelete(t *testing.T) {

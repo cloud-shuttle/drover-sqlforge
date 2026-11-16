@@ -9,10 +9,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/drover-org/drover-sqlforge/internal/model"
-	"github.com/drover-org/drover-sqlforge/internal/parser"
-	"github.com/drover-org/drover-sqlforge/internal/state"
-	"github.com/drover-org/drover-sqlforge/internal/virtual"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/model"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/state"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 )
 
 type EventType string

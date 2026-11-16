@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drover-org/drover-sqlforge/internal/state"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/state"
 )
 
 func TestE2EPipeline(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/drover-org/drover-sqlforge/internal/parser"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/parser"
 )
 
 func TestLoadModelsFolderCapture(t *testing.T) {

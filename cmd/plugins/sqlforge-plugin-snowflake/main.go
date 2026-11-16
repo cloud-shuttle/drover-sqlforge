@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/drover-org/drover-sqlforge/internal/virtual"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 	"github.com/hashicorp/go-plugin"
 	_ "github.com/snowflakedb/gosnowflake/v2"
 )

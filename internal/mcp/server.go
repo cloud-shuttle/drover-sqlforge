@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/drover-org/drover-sqlforge/internal/project"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/project"
 )
 
 type Server struct {

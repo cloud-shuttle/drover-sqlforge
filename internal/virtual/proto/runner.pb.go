@@ -790,7 +790,7 @@ const file_internal_virtual_proto_runner_proto_rawDesc = "" +
 	"\vTableExists\x12\x19.proto.TableExistsRequest\x1a\x1a.proto.TableExistsResponse\x12U\n" +
 	"\x19CreateIncrementalMergeDDL\x12$.proto.CreateIncrementalMergeRequest\x1a\x12.proto.DDLResponse\x12A\n" +
 	"\n" +
-	"QueryCount\x12\x18.proto.QueryCountRequest\x1a\x19.proto.QueryCountResponseB>Z<github.com/drover-org/drover-sqlforge/internal/virtual/protob\x06proto3"
+	"QueryCount\x12\x18.proto.QueryCountRequest\x1a\x19.proto.QueryCountResponseBAZ?github.com/cloud-shuttle/drover-sqlforge/internal/virtual/protob\x06proto3"
 
 var (
 	file_internal_virtual_proto_runner_proto_rawDescOnce sync.Once
