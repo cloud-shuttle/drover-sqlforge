@@ -2,12 +2,12 @@
 
 > **Repo status (rationalization 2026-11-09):** STALE — HEAD 2026-05-26. Go data-transformation engine. Next: consumer-facing transformation smoke test before expanding scope. Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
 
-[![CI](https://github.com/drover-org/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/drover-org/drover-sqlforge/actions/workflows/ci.yml)
+[![CI](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
+[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)](https://go.dev)
 [![Status](https://img.shields.io/badge/status-alpha-orange)](ROADMAP.md)
 
-> Part of the [Drover Ecosystem](../DROVER_ECOSYSTEM.md) — Orchestrating Autonomous Agentic Engineering
+> Part of the Drover ecosystem ([cross-repo map](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md)): orchestrating autonomous agentic engineering.
 
 **SQLForge** is a modern, pure Go-native alternative to dbt. It replaces Jinja templating with **compile-time AST analysis** via an embedded Polyglot WASM engine, giving you repeatable, agent-friendly data transformations across every major SQL warehouse.
 
@@ -17,7 +17,7 @@
 
 ```bash
 # 1. Clone and build
-git clone https://github.com/drover-org/drover-sqlforge.git
+git clone https://github.com/cloud-shuttle/drover-sqlforge.git
 cd drover-sqlforge && make build && make plugins
 
 # 2. Run against the bundled example (DuckDB in-memory, no server needed)
@@ -59,22 +59,24 @@ That's it. Eight models built, quality tests run, fingerprints saved.
 
 ## Supported Warehouses
 
-| Warehouse | Plugin | Status |
-|-----------|--------|--------|
-| ClickHouse | built-in | ✅ Production |
-| DuckDB | `sqlforge-plugin-duckdb` | ✅ Production |
-| Snowflake | `sqlforge-plugin-snowflake` | ✅ Production |
-| Databricks | `sqlforge-plugin-databricks` | ✅ Production |
-| PostgreSQL | `sqlforge-plugin-postgres` | ✅ Production |
-| Apache Doris | `sqlforge-plugin-doris` | ✅ Alpha |
-| VeloDB (SelectDB) | `sqlforge-plugin-velodb` | ✅ Alpha |
+| Warehouse | Runner | Tested against a live database |
+|-----------|--------|--------------------------------|
+| ClickHouse | built-in | ✅ testcontainers integration test in CI |
+| DuckDB | `sqlforge-plugin-duckdb` | ✅ e2e CLI tests in CI |
+| PostgreSQL | built-in | ⚠️ DDL snapshot tests only (live tests: #58) |
+| Snowflake | `sqlforge-plugin-snowflake` | ⚠️ DDL snapshot tests only |
+| Databricks | `sqlforge-plugin-databricks` | ⚠️ DDL snapshot tests only |
+| Apache Doris | `sqlforge-plugin-doris` | ⚠️ DDL snapshot tests only |
+| VeloDB (SelectDB) | `sqlforge-plugin-velodb` | ⚠️ DDL snapshot tests only |
+
+The whole project is **alpha**. "DDL snapshot tests only" means the generated SQL is checked as strings but has not been executed against that warehouse in CI.
 
 ---
 
 ## Installation
 
 ```bash
-git clone https://github.com/drover-org/drover-sqlforge.git
+git clone https://github.com/cloud-shuttle/drover-sqlforge.git
 cd drover-sqlforge
 
 # Build the core CLI
@@ -240,7 +242,7 @@ Docs under `docs/` follow [Diátaxis](https://diataxis.fr/):
 - [`docs/reference/`](docs/reference/) — CLI and config reference
 - [`docs/tutorials/`](docs/tutorials/) — End-to-end walkthroughs
 
-New pages require YAML frontmatter per the org [content taxonomy](../docs/taxonomy.yaml); validate with [`scripts/validate-content-frontmatter.sh`](scripts/validate-content-frontmatter.sh).
+New pages require YAML frontmatter per the org [content taxonomy](taxonomy/taxonomy.yaml); validate with [`scripts/validate-content-frontmatter.sh`](scripts/validate-content-frontmatter.sh).
 
 ---
 

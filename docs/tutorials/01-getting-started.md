@@ -1,3 +1,16 @@
+---
+title: "Tutorial: Your First SQLForge Project"
+description: Install SQLForge, learn the project layout, and run plan and apply against the bundled example project.
+product: drover-sqlforge
+audience:
+  - evaluator
+  - member
+doc_type: tutorial
+topics:
+  - data-warehousing
+surface: repo-docs
+---
+
 # Tutorial: Your First SQLForge Project
 
 **Time:** 20–30 minutes  
@@ -10,7 +23,7 @@
 
 You'll need:
 
-- **Go 1.22+** — check with `go version`
+- **Go 1.26+** — check with `go version`
 - **Git**
 - No database server required — this tutorial uses DuckDB, which runs entirely in-memory.
 
@@ -23,7 +36,7 @@ You'll need:
 Clone the repository and build the CLI:
 
 ```bash
-git clone https://github.com/drover-org/drover-sqlforge.git
+git clone https://github.com/cloud-shuttle/drover-sqlforge.git
 cd drover-sqlforge
 make build
 make plugins
