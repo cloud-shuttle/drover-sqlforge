@@ -87,6 +87,8 @@ make plugins
 
 > **Note:** `make build` also compiles the optional React Web GUI (`ui/`), which requires Node 20+. If you only want the CLI, `go build -o sqlforge ./cmd/sqlforge` is sufficient.
 
+> **Plugin binaries are not committed.** Run `make plugins` to build `sqlforge-plugin-<dialect>` for your own OS and architecture. The DuckDB plugin needs CGO and a C++ toolchain. `sqlforge` looks for plugins in the current directory, `../../`, and `../../bin/`. Some tests exec `./sqlforge` and the plugins from the repo root, so run `make test` (which builds them first) rather than a bare `go test ./...` on a fresh clone.
+
 ---
 
 ## Quick Start
