@@ -44,3 +44,20 @@ integration: build
 	docker compose -f test/integration/docker-compose.yml up -d --wait
 	go test -v ./test/integration/...
 	docker compose -f test/integration/docker-compose.yml down
+
+# Quality gate: the same checks CI runs after the test job (#57).
+# CRAP (tools/crap, per Go function): every function must score <= the limit
+# (30) except legacy functions pinned in quality/crap-baseline.json, which may
+# not get worse. Coverage: per-package floors in quality/coverage-floors.json.
+.PHONY: coverage quality-gate quality-baseline
+coverage:
+	TERM=xterm-256color go test -race -count=1 -coverprofile=coverage.out -covermode=atomic ./...
+
+quality-gate:
+	@test -f coverage.out || { echo "coverage.out missing: run 'make coverage' first (needs ./sqlforge and plugins, see 'make plugins')"; exit 1; }
+	go run ./tools/crap -coverage coverage.out -baseline quality/crap-baseline.json
+	python3 scripts/coverage-floors.py --coverage coverage.out --floors quality/coverage-floors.json
+
+# Lower or drop CRAP ceilings after improving tests (never raises or adds).
+quality-baseline:
+	go run ./tools/crap -coverage coverage.out -baseline quality/crap-baseline.json -update
