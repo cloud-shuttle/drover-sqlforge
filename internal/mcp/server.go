@@ -1,19 +1,29 @@
 package mcp
 
 import (
+	"crypto/subtle"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 
 	"github.com/drover-org/drover-sqlforge/internal/project"
 )
+
+// DefaultMaxBodyBytes caps a single JSON-RPC request body.
+const DefaultMaxBodyBytes int64 = 1 << 20 // 1 MiB
 
 type Server struct {
 	Registry *Registry
 	APIKey   string
 	Runtime  *project.Runtime
 	Plans    *PlanStore
+	// MaxBodyBytes caps the request body; zero means DefaultMaxBodyBytes.
+	MaxBodyBytes int64
 }
 
 func NewServer(apiKey string, rt *project.Runtime) *Server {
@@ -31,13 +41,11 @@ func NewServer(apiKey string, rt *project.Runtime) *Server {
 
 // ServeHTTP implements the JSON-RPC 2.0 handler for the MCP endpoint
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Simple Auth check if API key is configured
-	if s.APIKey != "" {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader != "Bearer "+s.APIKey {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
+	// Auth check if an API key is configured. ValidateBind refuses to start a
+	// non-loopback server without one.
+	if s.APIKey != "" && !bearerMatches(r.Header.Get("Authorization"), s.APIKey) {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 
 	if r.Method != http.MethodPost {
@@ -45,12 +53,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	limit := s.MaxBodyBytes
+	if limit <= 0 {
+		limit = DefaultMaxBodyBytes
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
 	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
 		sendError(w, nil, ParseError, "Parse error")
 		return
 	}
-	defer r.Body.Close()
 
 	var req Request
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -83,6 +101,34 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sendSuccess(w, req.ID, result)
+}
+
+// bearerMatches compares an Authorization header against the expected key in
+// constant time.
+func bearerMatches(header, key string) bool {
+	token, ok := strings.CutPrefix(header, "Bearer ")
+	if !ok {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(token), []byte(key)) == 1
+}
+
+// ValidateBind refuses configurations that would expose the MCP tools
+// (including apply_change, which writes to the warehouse) on a non-loopback
+// interface without authentication.
+func ValidateBind(host, apiKey string) error {
+	if apiKey != "" || isLoopback(host) {
+		return nil
+	}
+	return fmt.Errorf("refusing to bind MCP server to %q without an API key: set SQLFORGE_MCP_API_KEY (or --api-key), or bind to 127.0.0.1", host)
+}
+
+func isLoopback(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	return ip != nil && ip.IsLoopback()
 }
 
 func sendSuccess(w http.ResponseWriter, id json.RawMessage, result interface{}) {
