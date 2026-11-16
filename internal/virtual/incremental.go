@@ -82,10 +82,14 @@ func buildMergeDDL(dialect, qualified, selectSQL, uniqueKey string) (string, err
 	case "clickhouse":
 		return fmt.Sprintf("INSERT INTO %s\nSELECT * FROM (%s);", qualified, selectSQL), nil
 	default:
-		// duckdb, postgres, and other ANSI engines
+		// duckdb, postgres, and other ANSI engines. `ON CONFLICT ... DO UPDATE
+		// SET *` is not valid on Postgres (or DuckDB), and ON CONFLICT needs a
+		// unique index that CREATE TABLE AS never creates. Delete the matching
+		// keys and re-insert instead: both engines run a multi-statement string
+		// as one implicit transaction. Found by the live Postgres tests (#58).
 		return fmt.Sprintf(
-			"INSERT INTO %s\nSELECT * FROM (%s)\nON CONFLICT (%s) DO UPDATE SET *;",
-			qualified, selectSQL, uniqueKey,
+			"DELETE FROM %s WHERE %s IN (SELECT %s FROM (%s) AS sqlforge_src);\nINSERT INTO %s\nSELECT * FROM (%s) AS sqlforge_src;",
+			qualified, uniqueKey, uniqueKey, selectSQL, qualified, selectSQL,
 		), nil
 	}
 }

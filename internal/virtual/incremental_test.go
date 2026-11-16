@@ -26,7 +26,7 @@ func TestCreateIncrementalMergeDDL(t *testing.T) {
 			name:     "DuckDB Upsert",
 			dialect:  "duckdb",
 			config:   map[string]string{"unique_key": "id"},
-			expected: "INSERT INTO test_db.test_table\nSELECT * FROM (SELECT 1 AS id, 'a' AS val)\nON CONFLICT (id) DO UPDATE SET *;",
+			expected: "DELETE FROM test_db.test_table WHERE id IN (SELECT id FROM (SELECT 1 AS id, 'a' AS val) AS sqlforge_src);\nINSERT INTO test_db.test_table\nSELECT * FROM (SELECT 1 AS id, 'a' AS val) AS sqlforge_src;",
 		},
 		{
 			name:     "Snowflake Append",
@@ -50,7 +50,7 @@ func TestCreateIncrementalMergeDDL(t *testing.T) {
 			name:     "Postgres Upsert",
 			dialect:  "postgres",
 			config:   map[string]string{"unique_key": "id"},
-			expected: "INSERT INTO test_db.test_table\nSELECT * FROM (SELECT 1 AS id, 'a' AS val)\nON CONFLICT (id) DO UPDATE SET *;",
+			expected: "DELETE FROM test_db.test_table WHERE id IN (SELECT id FROM (SELECT 1 AS id, 'a' AS val) AS sqlforge_src);\nINSERT INTO test_db.test_table\nSELECT * FROM (SELECT 1 AS id, 'a' AS val) AS sqlforge_src;",
 		},
 	}
 

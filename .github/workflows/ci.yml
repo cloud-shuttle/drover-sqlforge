@@ -46,6 +46,37 @@ jobs:
           path: coverage.out
           retention-days: 7
 
+  live-db:
+    name: Live DB integration (Postgres + DuckDB)
+    # #58: run the runner SQL against real databases. DuckDB runs in-process
+    # via its plugin; Postgres runs in a service container.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sqlforge
+          POSTGRES_PASSWORD: sqlforge
+          POSTGRES_DB: sqlforge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sqlforge"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - name: Live database tests
+        env:
+          TERM: xterm-256color
+          # Throwaway CI-only credentials for the service container above.
+          SQLFORGE_TEST_POSTGRES_DSN: postgres://sqlforge:sqlforge@localhost:5432/sqlforge?sslmode=disable
+        run: go test -count=1 -v -run 'TestLive' ./test/integration
+
   quality-gate:
     name: Quality Gate (CRAP)
     runs-on: ubuntu-latest
