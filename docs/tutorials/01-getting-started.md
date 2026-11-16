@@ -1,3 +1,16 @@
+---
+title: "Tutorial: Your First SQLForge Project"
+description: Install SQLForge, learn the project layout, and run plan and apply against the bundled example project.
+product: drover-sqlforge
+audience:
+  - evaluator
+  - member
+doc_type: tutorial
+topics:
+  - data-warehousing
+surface: repo-docs
+---
+
 # Tutorial: Your First SQLForge Project
 
 **Time:** 20–30 minutes  
