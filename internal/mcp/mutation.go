@@ -82,6 +82,10 @@ func applyChange(ctx context.Context, rt *project.Runtime, store *PlanStore, pla
 		return nil, fmt.Errorf("plan_id %q not found or expired", planID)
 	}
 	execPlan := pending.Plan
+	if current := runtimeEnvName(rt); pending.Environment != current {
+		store.Delete(planID)
+		return nil, fmt.Errorf("plan_id %q was created for environment %q and cannot be applied to %q", planID, pending.Environment, current)
+	}
 	if err := revalidateProposal(pending); err != nil {
 		store.Delete(planID)
 		return nil, err
@@ -129,6 +133,13 @@ func revalidateProposal(p *PendingPlan) error {
 		}
 	}
 	return nil
+}
+
+func runtimeEnvName(rt *project.Runtime) string {
+	if rt == nil || rt.Env == nil {
+		return ""
+	}
+	return rt.Env.Name
 }
 
 func replaceAsset(assets []*model.Asset, modified *model.Asset) []*model.Asset {

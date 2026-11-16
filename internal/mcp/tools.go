@@ -30,6 +30,10 @@ type Tool struct {
 
 	// Handler is the function executed when the tool is called
 	Handler func(ctx context.Context, params []byte) (interface{}, error) `json:"-"`
+
+	// Mutating marks tools that create plans or write to the warehouse.
+	// They are not registered when the server runs in read-only mode.
+	Mutating bool `json:"-"`
 }
 
 // Registry holds all registered MCP tools
@@ -45,6 +49,11 @@ func NewRegistry() *Registry {
 
 func (r *Registry) Register(tool Tool) {
 	r.tools[tool.Name] = tool
+}
+
+// Unregister removes a tool by name. It is a no-op for unknown names.
+func (r *Registry) Unregister(name string) {
+	delete(r.tools, name)
 }
 
 func (r *Registry) Get(name string) (Tool, bool) {
@@ -214,6 +223,7 @@ func (r *Registry) InitializeCoreTools(rt *project.Runtime, plans *PlanStore) {
 
 	r.Register(Tool{
 		Name:        "plan_change",
+		Mutating:    true,
 		Description: "Propose new model SQL and return an execution plan with plan_id for apply_change",
 		InputSchema: ToolSchema{
 			Type: "object",
@@ -240,6 +250,7 @@ func (r *Registry) InitializeCoreTools(rt *project.Runtime, plans *PlanStore) {
 
 	r.Register(Tool{
 		Name:        "apply_change",
+		Mutating:    true,
 		Description: "Execute a plan_id returned by plan_change",
 		InputSchema: ToolSchema{
 			Type: "object",

@@ -1,3 +1,17 @@
+---
+title: "Reference: sqlforge.yml configuration"
+description: Every key in the sqlforge.yml project file, including warehouse connection, AI provider and MCP protected environments.
+product: drover-sqlforge
+audience:
+  - member
+  - agent
+doc_type: reference
+topics:
+  - data-warehousing
+  - mcp
+surface: repo-docs
+---
+
 # Reference: `sqlforge.yml` Configuration
 
 This document provides a comprehensive, systematic reference for all configuration options available in the `sqlforge.yml` project file.
@@ -25,6 +39,9 @@ virtual:
   dialect: clickhouse
   connection: "clickhouse://default:password@localhost:9000/default?dial_timeout=200ms"
 
+# Environments where MCP apply_change is refused (default: [prod])
+protected_environments: [prod]
+
 # Optional LLM integration configuration for agentic features (MCP)
 ai:
   provider: anthropic
@@ -51,6 +68,14 @@ ai:
 * **Required:** No
 * **Default:** `prod`
 * **Description:** The target environment name to use if the `--env` parameter (or environment CLI argument) is omitted during `sqlforge plan`, `sqlforge apply`, or `sqlforge test`.
+
+---
+
+### `protected_environments`
+
+* **Type:** list of strings
+* **Default:** `[prod]` when the key is unset. An explicit `[]` protects nothing.
+* **Description:** Environments where the MCP server refuses `apply_change`, unless it is started with `--allow-protected-apply`. Matching ignores case. See [Reference: MCP tools and tool policy](mcp-tools.md).
 
 ---
 

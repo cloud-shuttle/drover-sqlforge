@@ -34,6 +34,7 @@ func (r *Registry) registerSnapshotTools(rt *project.Runtime) {
 
 	r.Register(Tool{
 		Name:        "run_snapshot",
+		Mutating:    true,
 		Description: "Execute a snapshot by name in the current environment",
 		InputSchema: ToolSchema{
 			Type: "object",
