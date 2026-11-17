@@ -16,11 +16,11 @@ surface: repo-docs
 
 **Status:** Accepted  
 **Date:** 2026-05-22  
-**Contexts:** [`CONTEXT.md`](../../CONTEXT.md), [`drover-code/CONTEXT.md`](../../../drover-code/CONTEXT.md), [`CONTEXT-MAP.md`](../../../CONTEXT-MAP.md)
+**Contexts:** [`CONTEXT.md`](../../CONTEXT.md), [`drover-code/CONTEXT.md`](../../../drover-code/CONTEXT.md), [`CONTEXT-MAP.md`](https://github.com/cloud-shuttle/home/blob/main/docs/context-map.md)
 
 ## Context
 
-The Drover ecosystem describes **agents** using **Drover SQLForge** for warehouse schema and model work ([`DROVER_ECOSYSTEM.md`](../../../DROVER_ECOSYSTEM.md) step 9). SQLForge also ships an HTTP **SQLForge MCP server** with tools such as `list_metrics`, `query_metric`, and deferred `plan_change` / `apply_change`.
+The Drover ecosystem describes **agents** using **Drover SQLForge** for warehouse schema and model work ([`DROVER_ECOSYSTEM.md`](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md) step 9). SQLForge also ships an HTTP **SQLForge MCP server** with tools such as `list_metrics`, `query_metric`, and deferred `plan_change` / `apply_change`.
 
 Integration options for **Drover Code** (BYOC or hosted **agent jobs**):
 

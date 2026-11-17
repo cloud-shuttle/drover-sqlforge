@@ -1,5 +1,13 @@
 # Drover SQLForge 🚀 (v0.1.0-alpha)
 
+![Status: active](https://img.shields.io/badge/status-active-2ea44f)
+
+> **Status, checked 18 Nov 2026: ACTIVE.** Go data-transformation engine (a dbt alternative) with an MCP server. Tagged v0.1.0-alpha. Last change 16 Nov 2026. Outside the gap program.
+>
+> **Clean-clone check:** `go build ./...` needs a C toolchain with libstdc++ because the DuckDB plugin uses cgo. The e2e tests need `make e2e` first so the `sqlforge` binary exists.
+>
+> **Roadmap:** [ROADMAP.md](ROADMAP.md). Program tracking: Drover gap program (M0 to M4).
+
 > **Repo status (2026-11-16):** active again after the 2026-11-09 rationalization marked it STALE. Every PR now runs a consumer-facing smoke test (`make smoke`): a fresh copy of the bundled example goes through plan → apply → test → query → docs on DuckDB. The roadmap is tracked in [epic #65](https://github.com/cloud-shuttle/drover-sqlforge/issues/65). Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
 
 [![CI](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml)
