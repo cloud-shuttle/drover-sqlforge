@@ -85,6 +85,7 @@ CI (the `quality-gate` job) and `make quality-gate` enforce **per-package floors
 - `make quality-baseline` lowers those ceilings as tests improve.
 
 Additional v0.2.0 scope:
+- [x] Real-database integration tests for runner SQL (Postgres, DuckDB), including injection regressions (#58)
 - [ ] Reference docs: `docs/reference/sqlforge-yml.md` and `docs/reference/model-config.md`
 - [ ] `sqlforge plugin install` — download pre-compiled plugin binaries for the current platform
 - [ ] `docs/reference/mcp-tools.md` — full parameter/response schemas for all MCP tools

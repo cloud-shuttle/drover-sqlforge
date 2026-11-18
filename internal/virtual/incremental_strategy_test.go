@@ -37,6 +37,32 @@ func TestBuildIncrementalMergeDeleteInsert(t *testing.T) {
 	}
 }
 
+func TestBuildIncrementalMergeDDL_TrimsTerminator(t *testing.T) {
+	ddl, err := BuildIncrementalMergeDDL("postgres", "s", "t", "SELECT 'a;b' AS name;", map[string]string{
+		"incremental_strategy": "append",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(ddl, "name;") {
+		t.Fatalf("terminator left inside subquery: %s", ddl)
+	}
+	if !strings.Contains(ddl, "SELECT 'a;b' AS name)") {
+		t.Fatalf("quoted semicolon lost: %s", ddl)
+	}
+
+	ddl, err = BuildIncrementalMergeDDL("duckdb", "s", "t", "SELECT 'a;b' AS name;", map[string]string{
+		"incremental_strategy": "merge",
+		"unique_key":           "id",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(ddl, "name;") || !strings.Contains(ddl, "DELETE FROM") {
+		t.Fatalf("merge ddl = %s", ddl)
+	}
+}
+
 func TestBuildIncrementalInitialReplacingMergeTree(t *testing.T) {
 	ddl, err := BuildIncrementalInitialDDL("clickhouse", "db", "t", "SELECT 1 AS id, now() AS updated_at", map[string]string{
 		"incremental_strategy": "replacing_merge_tree",

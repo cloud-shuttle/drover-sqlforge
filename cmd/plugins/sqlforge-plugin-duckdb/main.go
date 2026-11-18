@@ -22,8 +22,12 @@ func (r *DuckDBRunner) Exec(ctx context.Context, query string) error {
 	if r.db == nil {
 		return fmt.Errorf("duckdb connection not initialized")
 	}
-	_, err := r.db.ExecContext(ctx, query)
-	return err
+	// Incremental merge is two statements (delete, then insert). The driver
+	// runs one command per ExecContext.
+	return virtual.ExecStatements(ctx, query, func(ctx context.Context, stmt string) error {
+		_, err := r.db.ExecContext(ctx, stmt)
+		return err
+	})
 }
 
 func (r *DuckDBRunner) CreateSchemaDDL(schema string) string {
@@ -52,7 +56,7 @@ func (r *DuckDBRunner) TableExists(ctx context.Context, schema, table string) (b
 	}
 
 	query := `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?`
-	
+
 	parts := strings.Split(schema, ".")
 	searchSchema := schema
 	if len(parts) > 1 {
@@ -159,6 +163,9 @@ func main() {
 		if err != nil {
 			log.Fatalf("failed to connect to duckdb: %v", err)
 		}
+		// Each Driver.Open is its own database. A second pooled connection
+		// would not see tables created on the first, and would fight the file lock.
+		db.SetMaxOpenConns(1)
 		defer db.Close()
 
 		if err := registerClickHouseCompatibility(db); err != nil {
