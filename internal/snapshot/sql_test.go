@@ -67,6 +67,34 @@ func TestResolveConfigCheck(t *testing.T) {
 	}
 }
 
+func TestResolveConfigTimestampRequiresUpdatedAt(t *testing.T) {
+	_, err := ResolveConfig(&Definition{Name: "x", Config: map[string]string{"unique_key": "id"}})
+	if err == nil || !strings.Contains(err.Error(), "updated_at") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestResolveConfigUnknownStrategy(t *testing.T) {
+	_, err := ResolveConfig(&Definition{
+		Name:   "x",
+		Config: map[string]string{"strategy": "scd", "unique_key": "id"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "unknown strategy") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestBuildRunClickHouseCheck(t *testing.T) {
+	stmts, err := BuildRun("clickhouse", "sqlforge__prod", "users_snapshot", true,
+		"SELECT 1 AS id", ResolvedConfig{Strategy: "check", UniqueKey: "id", CheckCols: []string{"status"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stmts) != 1 || !strings.Contains(stmts[0], "INSERT INTO") || !strings.Contains(stmts[0], "now()") {
+		t.Fatalf("clickhouse check: %v", stmts)
+	}
+}
+
 func TestResolveConfigCheckRequiresCols(t *testing.T) {
 	_, err := ResolveConfig(&Definition{
 		Name:   "x",
