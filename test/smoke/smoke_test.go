@@ -27,15 +27,17 @@ const env = "prod"
 // Tables the example builds and their row counts. The staging models
 // generate fixed-size data; -1 means "non-empty" for models grouped by
 // now()-relative dates, whose row counts depend on the time of day.
+// int_customer_sessions is checked separately: stg_events spans the last
+// 1000 minutes, grouped by user and calendar day, so the count is 100 on
+// one day and 200 when that window crosses midnight.
 var wantRows = map[string]int{
-	"sqlforge__prod_staging.stg_users":                  100,
-	"sqlforge__prod_staging.stg_events":                 1000,
-	"sqlforge__prod_staging.stg_experiments":            100,
-	"sqlforge__prod_intermediate.int_customer_sessions": 200,
-	"sqlforge__prod_marts.customer_360":                 100,
-	"sqlforge__prod_marts.daily_metrics":                1000,
-	"sqlforge__prod_marts.ab_test_results":              -1,
-	"sqlforge__prod.semantic__daily_active_users":       -1,
+	"sqlforge__prod_staging.stg_users":            100,
+	"sqlforge__prod_staging.stg_events":           1000,
+	"sqlforge__prod_staging.stg_experiments":      100,
+	"sqlforge__prod_marts.customer_360":           100,
+	"sqlforge__prod_marts.daily_metrics":          1000,
+	"sqlforge__prod_marts.ab_test_results":        -1,
+	"sqlforge__prod.semantic__daily_active_users": -1,
 }
 
 func repoRoot(t *testing.T) string {
@@ -216,6 +218,12 @@ func TestConsumerSmoke(t *testing.T) {
 		case want < 0 && got == 0:
 			t.Errorf("%s: empty", model)
 		}
+	}
+	var sessions int
+	if err := db.QueryRow("SELECT COUNT(*) FROM sqlforge__prod_intermediate.int_customer_sessions").Scan(&sessions); err != nil {
+		t.Errorf("count int_customer_sessions: %v", err)
+	} else if sessions != 100 && sessions != 200 {
+		t.Errorf("sqlforge__prod_intermediate.int_customer_sessions: %d rows, want 100 or 200", sessions)
 	}
 
 	// daily_active_users by country: the example only has US users.

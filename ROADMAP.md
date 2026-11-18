@@ -47,7 +47,7 @@ SQLForge is outside the five gaps. Its own plan stays in this file and under epi
 ## 🟡 Phase 4: Agentic Tier / MCP Server (Partially complete)
 - [x] **MCP Server**: Embed an HTTP server to expose SQLForge as a Model Context Protocol service for autonomous agents.
 - [x] **MCP Tool Registry**: Read and mutation tools (`list_models`, `query_metric`, `plan_change`, `apply_change`, etc.); ephemeral plan store for `apply_change` ([ADR 0002](docs/adr/0002-cli-invocation-drover-code-integration.md)).
-- [x] **API key auth**: A single static bearer key (`--api-key`). Hardening is in progress in #52.
+- [x] **API key auth**: A single static bearer key (`--api-key`). #52 landed loopback-only unauthenticated binds and a 1 MiB body cap.
 - [x] **Read-only MCP and protected environments**: `sqlforge mcp --read-only` omits write tools. `protected_environments` defaults to `prod`. Plans apply only in the environment they were created for (#55).
 - [ ] **Interactive Execution**: WebSocket endpoints for live plan approval and step-by-step feedback. *Not implemented: the MCP server is plain JSON-RPC over HTTP POST.*
 - [ ] **Rate limiting**: *Not implemented.*
@@ -69,12 +69,12 @@ SQLForge is outside the five gaps. Its own plan stays in this file and under epi
 - [x] **`make plugins` build target**: Compiles all five warehouse plugin binaries in a single step.
 - [x] **Core binary CGO-free**: All warehouse drivers are fully isolated in standalone gRPC plugin binaries; `sqlforge` has zero CGO dependencies.
 
-## 🎯 v0.2.0 Beta — Test Coverage & Stability (Next Milestone)
+## ✅ v0.2.0-beta — tagged
 
-Before graduating from alpha to beta, we are targeting measurable improvements to unit test coverage in the critical internal packages. These thresholds gate the beta release.
+Tagged [`v0.2.0-beta`](https://github.com/cloud-shuttle/drover-sqlforge/releases/tag/v0.2.0-beta) at `8772ad5`. That tag is the source tree. It has no binaries. The coverage on the tag met these gates:
 
-| Package | Current (v0.1.0-alpha) | Target (v0.2.0-beta) |
-|---------|------------------------|----------------------|
+| Package | On the tag | Target (v0.2.0-beta) |
+|---------|------------|----------------------|
 | `internal/plan` | 85.4% | **≥ 80%** |
 | `internal/state` | 71.4% | **≥ 60%** |
 | `internal/snapshot` | 90.7% | **≥ 50%** |
@@ -88,7 +88,7 @@ CI (the `quality-gate` job) and `make quality-gate` enforce **per-package floors
 Additional v0.2.0 scope:
 - [x] Real-database integration tests for runner SQL (Postgres, DuckDB), including injection regressions (#58)
 - [x] Reference docs: `docs/reference/sqlforge-yml.md`, `docs/reference/model-config.md`, and `docs/reference/mcp-tools.md`
-- [ ] `sqlforge plugin install` — download pre-compiled plugin binaries for the current platform
+- [ ] `sqlforge plugin install` — download pre-compiled plugin binaries for the current platform. Waits on the release pipeline (#101). Not in the beta tag.
 
 ---
 
