@@ -19,6 +19,10 @@ updates:
       npm-dependencies:
         patterns:
           - "*"
+    # typescript-eslint does not yet accept TypeScript 7.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # Keep GitHub Actions workflows updated
   - package-ecosystem: "github-actions"
