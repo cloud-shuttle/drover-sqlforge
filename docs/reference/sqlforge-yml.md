@@ -1,116 +1,145 @@
 ---
-title: 'Reference: `sqlforge.yml` Configuration'
+title: "Reference: sqlforge.yml"
+description: Fields the SQLForge loader reads from sqlforge.yml, including warehouse, AI, and MCP auth settings.
 product: drover-sqlforge
 audience: platform-operator
 doc_type: reference
 topics:
-- data-warehousing
+  - data-warehousing
+  - mcp
+  - identity-auth
 surface: repo-docs
 ---
 
-# Reference: `sqlforge.yml` Configuration
+# Reference: `sqlforge.yml`
 
-This document provides a comprehensive, systematic reference for all configuration options available in the `sqlforge.yml` project file.
-
-The `sqlforge.yml` file is located at the root of your SQLForge project. It defines the workspace identity, default runtime behavior, warehouse connection details, and optional LLM provider integration.
-
----
-
-## Configuration Schema
-
-Below is a complete `sqlforge.yml` file displaying all supported configuration sections and keys:
+`sqlforge.yml` sits at the project root. `config.LoadConfig` reads it, expands `${VAR}` from the environment, and also loads a `.env` file in the same directory when one exists. Keys that are not listed here are ignored. `packages.yml` and `metrics.yml` are separate files.
 
 ```yaml
-# The unique identifier for this data automation project
-name: ecommerce_analytics
+name: agentic_retail_2026
+version: "1.0.0"
+default_environment: prod
 
-# The semantic version of your project schema
-version: 1.0.0
+protected_environments:
+  - prod
 
-# The default environment name used when no --env flag is supplied to the CLI
-default_environment: dev
-
-# Warehouse connection and dialect configuration
 virtual:
-  dialect: clickhouse
-  connection: "clickhouse://default:password@localhost:9000/default?dial_timeout=200ms"
+  dialect: duckdb
+  connection: memory
 
-# Optional LLM integration configuration for agentic features (MCP)
 ai:
-  provider: anthropic
-  model: claude-3-5-sonnet-latest
-  endpoint: https://api.anthropic.com
+  provider: ollama
+  model: llama3.2
+  endpoint: http://localhost:11434
+
+mcp:
+  auth:
+    mode: api_key
+  hooks: []
 ```
 
----
-
-## Key Reference
+## Top level
 
 ### `name`
-* **Type:** `string`
-* **Required:** Yes
-* **Description:** The unique name of your data project. This identifier is used internally to namespace local state, environment schemas, and compile metadata.
+
+String. Optional. The loader stores it and does not require it.
 
 ### `version`
-* **Type:** `string`
-* **Required:** Yes
-* **Description:** The semantic version of the project's schema (e.g. `1.0.0`). Useful for tracking schema changes over time.
+
+String. Optional. The loader stores it and does not require it.
 
 ### `default_environment`
-* **Type:** `string`
-* **Required:** No
-* **Default:** `prod`
-* **Description:** The target environment name to use if the `--env` parameter (or environment CLI argument) is omitted during `sqlforge plan`, `sqlforge apply`, or `sqlforge test`.
 
----
+String. Optional. When set, `sqlforge env create` uses it as the base environment if `--base` is omitted, and a new runtime records it as the base of the environment it opens. When omitted, that base is `prod`.
 
-## `virtual` Section
+This is not the environment a command runs against. `sqlforge plan`, `apply`, and `mcp` take the environment as an argument. `sqlforge mcp` with no argument uses `dev`.
 
-The `virtual` configuration block defines the active connection to your analytics database or data warehouse. 
+### `protected_environments`
 
-> [!NOTE]
-> SQLForge uses a pure Go-native connection layer. Except for database-specific drivers compiled into external gRPC plugins, the core execution engine does not require CGO.
+List of environment names. `apply_change` on the MCP server refuses these unless the process was started with `--allow-protected-apply`.
+
+Omit the field and the protected set is `prod`. Set it to `[]` and nothing is protected. Empty strings in the list are skipped.
+
+## `virtual`
+
+The warehouse the runners open.
 
 ### `virtual.dialect`
-* **Type:** `string`
-* **Required:** Yes
-* **Supported Values:**
-  * `clickhouse` (native ClickHouse protocol)
-  * `duckdb` (embedded/file-based analytics engine)
-  * `postgres` (PostgreSQL and compatible warehouses)
-  * `snowflake` (Snowflake Cloud Data Platform)
-  * `doris` (Apache Doris real-time data warehouse)
-  * `velodb` (VeloDB analytical store)
-* **Description:** The SQL dialect and connection driver class.
+
+String. Passed to `virtual.NewRunner`.
+
+| Value | How it connects |
+|---|---|
+| `clickhouse`, or empty | In-process ClickHouse runner |
+| `postgres` | In-process PostgreSQL runner (`lib/pq`) |
+| anything else | gRPC plugin binary `sqlforge-plugin-<dialect>` |
+
+Plugins shipped in this repo: `duckdb`, `snowflake`, `databricks`, `doris`, `velodb`. The core `sqlforge` binary does not link those drivers. DuckDB's plugin needs CGO. The process looks for the binary on `PATH`, then `./`, `../../`, and `../../bin/`. It receives the connection string as `SQLFORGE_PLUGIN_DSN`.
 
 ### `virtual.connection`
-* **Type:** `string`
-* **Required:** Yes
-* **Description:** The database-specific connection URI or file path. 
-* **Examples by Dialect:**
-  * **DuckDB:** `"/Users/user/data/my_project.db"` (a local file path)
-  * **ClickHouse:** `"clickhouse://default:password@localhost:9000/default?dial_timeout=200ms"`
-  * **PostgreSQL:** `"postgres://postgres:password@localhost:5432/my_db?sslmode=disable"`
-  * **Snowflake:** `"user:password@account_identifier/db_name/schema_name?warehouse=wh_name"`
 
----
+String. Dialect-specific DSN or path.
 
-## `ai` Section
+| Dialect | Example |
+|---|---|
+| DuckDB | `memory`, `:memory:`, or `stub` for an in-memory database. Any other string is a file path. |
+| PostgreSQL | `postgres://user:password@localhost:5432/db?sslmode=disable` |
+| ClickHouse | `clickhouse://default:password@localhost:9000/default` |
 
-The optional `ai` configuration block provides parameters for the SQLForge Model Context Protocol (MCP) server. These settings instruct autonomous coding agents (like Cursor, Claude Desktop, or Drover Code) on which LLM provider to invoke when using agentic features.
+## `ai`
+
+Used by `sqlforge ai explain`. When `sqlforge.yml` cannot be loaded, explain uses provider `ollama`, endpoint `http://localhost:11434`, and model `llama3.2`. A file that loads does not fill empty `ai` fields.
 
 ### `ai.provider`
-* **Type:** `string`
-* **Required:** No
-* **Supported Values:** `openai`, `anthropic`
-* **Description:** The AI API provider for query synthesis, error recovery suggestions, and semantic compilation support.
+
+`ollama` or `gateway`. Any other value, including an empty one, uses the Ollama client.
+
+`gateway` posts an OpenAI-shaped chat completion to `{endpoint}/chat/completions`. The virtual key is read from `SQLFORGE_AI_VIRTUAL_KEY` and sent as `x-bf-vk`. There is no `virtual_key` field. A `virtual_key` entry in this file is ignored. The client refuses to dial when the environment variable is missing.
+
+Gateway requests also copy `X_BF_DIM_*` environment variables to `x-bf-dim-*` headers. A value is sent only when it is 1–128 characters from `A-Z`, `a-z`, `0-9`, `_`, `.`, `:`, and `-`.
 
 ### `ai.model`
-* **Type:** `string`
-* **Required:** No
-* **Description:** The model name to call (e.g., `gpt-4o`, `claude-3-5-sonnet-latest`).
+
+String. Model name sent to Ollama or Gateway.
 
 ### `ai.endpoint`
-* **Type:** `string`
-* **Required:** No
-* **Description:** The target URL of the LLM API. Allows routing queries through custom enterprise proxy Gateways, load balancers, or mock testing environments.
+
+String. Base URL of the Ollama server or the Gateway.
+
+## `mcp`
+
+Governance for `sqlforge mcp`. The API key is not a field in this file. Set `SQLFORGE_MCP_API_KEY` or pass `--api-key`. The flag wins when both are set.
+
+### `mcp.auth.mode`
+
+`api_key` (the default when omitted) or `oidc`.
+
+`api_key` checks `Authorization: Bearer`. With no key configured, the server runs only on a loopback bind. `oidc` reads the raw value of `mcp.auth.token_header`. It does not strip a `Bearer ` prefix and it does not fall back to the API key. It does not read `X-User-ID`, `X-Org-ID`, or `X-User-Roles`.
+
+### `mcp.auth.issuer`
+
+String. Required when mode is `oidc`. Must match the token `iss` exactly. Discovery loads `{issuer}/.well-known/openid-configuration` and then `jwks_uri`. The issuer URL must be `https`, or `http` on loopback.
+
+### `mcp.auth.audience`
+
+String. Required when mode is `oidc`. The token `aud` must contain this value.
+
+### `mcp.auth.token_header`
+
+String. Header that carries the OIDC token. Default `x-drover-identity-token`.
+
+### `mcp.auth.required_org`
+
+String. Optional. When set, the token must carry `urn:zitadel:iam:org:id` equal to this value.
+
+Accepted signing algorithms are RS256 and ES256. `exp` and `nbf` allow 60 seconds of skew. `iat` is required.
+
+### `mcp.hooks`
+
+List of hook names. The server always installs the built-in redact hook, which drops `sql`, `ast_type`, and `ast_value` from `get_model` when the caller is an agent.
+
+| Name | Effect |
+|---|---|
+| empty or `redact` | No extra hook. Redact is already installed. |
+| `warden` | Startup fails. The public module does not import drover-warden. Both build tags fail closed. |
+| anything else | Startup fails with `unknown mcp hook`. |

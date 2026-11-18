@@ -2,17 +2,17 @@
 
 ![Status: active](https://img.shields.io/badge/status-active-2ea44f)
 
-> **Status, checked 18 Nov 2026: ACTIVE.** Go data-transformation engine (a dbt alternative) with an MCP server. Tagged v0.1.0-alpha. Last change 16 Nov 2026. Outside the gap program.
+> **Status, checked 18 Nov 2026: ACTIVE.** Go data-transformation engine (a dbt alternative) with an MCP server. Tagged v0.1.0-alpha. Last change 18 Nov 2026. Outside the gap program.
 >
 > **Clean-clone check:** `go build ./...` needs a C toolchain with libstdc++ because the DuckDB plugin uses cgo. The e2e tests need `make e2e` first so the `sqlforge` binary exists.
 >
 > **Roadmap:** [ROADMAP.md](ROADMAP.md). Program tracking: Drover gap program (M0 to M4).
 
-> **Repo status (2026-11-16):** active again after the 2026-11-09 rationalization marked it STALE. Every PR now runs a consumer-facing smoke test (`make smoke`): a fresh copy of the bundled example goes through plan → apply → test → query → docs on DuckDB. The roadmap is tracked in [epic #65](https://github.com/cloud-shuttle/drover-sqlforge/issues/65). Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
+> **Repo status (2026-11-18):** active again after the 2026-11-09 rationalization marked it STALE. Every PR runs a consumer-facing smoke test (`make smoke`): a fresh copy of the bundled example goes through plan → apply → test → query → docs on DuckDB. Postgres and DuckDB also run apply integration tests in CI. Config and MCP fields are in [`docs/reference/`](docs/reference/). The roadmap is tracked in [epic #65](https://github.com/cloud-shuttle/drover-sqlforge/issues/65). Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
 
 [![CI](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)](https://go.dev)
+[![Go](https://img.shields.io/badge/Go-1.27+-00ADD8?logo=go)](https://go.dev)
 [![Status](https://img.shields.io/badge/status-alpha-orange)](ROADMAP.md)
 
 > Part of the Drover ecosystem ([cross-repo map](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md)): orchestrating autonomous agentic engineering.
@@ -70,14 +70,14 @@ That's it. Eight models built, quality tests run, fingerprints saved.
 | Warehouse | Runner | Tested against a live database |
 |-----------|--------|--------------------------------|
 | ClickHouse | built-in | ✅ testcontainers integration test in CI |
-| DuckDB | `sqlforge-plugin-duckdb` | ✅ e2e CLI tests in CI |
-| PostgreSQL | built-in | ⚠️ DDL snapshot tests only (live tests: #58) |
+| DuckDB | `sqlforge-plugin-duckdb` | ✅ apply integration test and e2e CLI smoke in CI |
+| PostgreSQL | built-in | ✅ apply integration test in CI |
 | Snowflake | `sqlforge-plugin-snowflake` | ⚠️ DDL snapshot tests only |
 | Databricks | `sqlforge-plugin-databricks` | ⚠️ DDL snapshot tests only |
 | Apache Doris | `sqlforge-plugin-doris` | ⚠️ DDL snapshot tests only |
 | VeloDB (SelectDB) | `sqlforge-plugin-velodb` | ⚠️ DDL snapshot tests only |
 
-The whole project is **alpha**. "DDL snapshot tests only" means the generated SQL is checked as strings but has not been executed against that warehouse in CI.
+The whole project is **alpha**. Postgres and DuckDB execute generated SQL in CI, including an injection regression on `plan_change`. "DDL snapshot tests only" means the generated SQL is checked as strings but has not been executed against that warehouse in CI.
 
 ---
 
@@ -153,7 +153,7 @@ open target/index.html
 | `sqlforge ui [env]` | Start local Web GUI with live DAG viewer |
 | `sqlforge mcp [env]` | Start MCP server for agentic integrations |
 | `sqlforge env create [name]` | Create an isolated warehouse environment |
-| `sqlforge ai explain [model]` | LLM-powered model explanation (Ollama) |
+| `sqlforge ai explain [model]` | Explain a model through Ollama, or Gateway when `ai.provider` is `gateway` |
 
 ---
 
@@ -223,11 +223,15 @@ Start the MCP server for any **Drover Code** agent or compatible IDE:
 | Tool | Description |
 |------|-------------|
 | `list_models` | Model names, config, fingerprints |
-| `get_model` | Full model SQL + column lineage |
+| `get_model` | Model SQL and column lineage. Agents do not receive the SQL. |
 | `list_metrics` | Discover semantic metrics |
-| `query_metric` | Execute a metric query (compiled SQL only) |
-| `plan_change` | Propose SQL for a model → `plan_id` |
+| `query_metric` | Compile a metric to SQL. Does not execute it. |
+| `list_snapshots` | Snapshot definitions |
+| `plan_change` | Propose one read-only SELECT → `plan_id` |
 | `apply_change` | Execute a `plan_id` (2h TTL) |
+| `run_snapshot` | Run one snapshot in the server's environment |
+
+Parameters and responses: [MCP tools](docs/reference/mcp-tools.md). Project file: [sqlforge.yml](docs/reference/sqlforge-yml.md). Model comments: [model config](docs/reference/model-config.md).
 
 ---
 
@@ -249,7 +253,7 @@ Docs under `docs/` follow [Diátaxis](https://diataxis.fr/):
 - [`docs/adr/`](docs/adr/) — Architecture Decision Records
 - [`docs/explanation/`](docs/explanation/) — Concept deep-dives
 - [`docs/how-to/`](docs/how-to/) — Step-by-step task guides
-- [`docs/reference/`](docs/reference/) — CLI and config reference
+- [`docs/reference/`](docs/reference/) — [`sqlforge.yml`](docs/reference/sqlforge-yml.md), [model comments](docs/reference/model-config.md), [MCP tools](docs/reference/mcp-tools.md)
 - [`docs/tutorials/`](docs/tutorials/) — End-to-end walkthroughs
 
 New pages require YAML frontmatter per the org [content taxonomy](taxonomy/taxonomy.yaml); validate with [`scripts/validate-content-frontmatter.sh`](scripts/validate-content-frontmatter.sh).
