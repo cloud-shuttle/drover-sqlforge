@@ -1,3 +1,5 @@
+/* Committed dist must not be a Tailwind source; rescanning it changes the next build. */
+@source not "../dist";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
