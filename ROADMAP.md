@@ -75,7 +75,7 @@ Before graduating from alpha to beta, we are targeting measurable improvements t
 
 | Package | Current (v0.1.0-alpha) | Target (v0.2.0-beta) |
 |---------|------------------------|----------------------|
-| `internal/plan` | 66.7% | **≥ 80%** |
+| `internal/plan` | 85.4% | **≥ 80%** |
 | `internal/state` | 71.4% | **≥ 60%** |
 | `internal/snapshot` | 90.7% | **≥ 50%** |
 | `internal/virtual` | 48.5% | **≥ 40%** |
