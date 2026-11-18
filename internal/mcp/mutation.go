@@ -86,6 +86,9 @@ func applyChange(ctx context.Context, rt *project.Runtime, store *PlanStore, pla
 		store.Delete(planID)
 		return nil, err
 	}
+	if err := enforceApplyPolicy(ctx, rt, pending); err != nil {
+		return nil, err
+	}
 
 	if len(execPlan.ChangedModels) == 0 && len(execPlan.Impacted) == 0 {
 		return map[string]interface{}{
@@ -111,6 +114,35 @@ func applyChange(ctx context.Context, rt *project.Runtime, store *PlanStore, pla
 
 // revalidateProposal re-checks the stored proposal immediately before apply
 // and confirms the plan executes exactly the SQL that was validated.
+func runtimeEnvName(rt *project.Runtime) string {
+	if rt == nil || rt.Env == nil {
+		return ""
+	}
+	return rt.Env.Name
+}
+
+// enforceApplyPolicy binds a plan to the environment it was created for and
+// refuses protected environments unless the server allowed them.
+func enforceApplyPolicy(ctx context.Context, rt *project.Runtime, pending *PendingPlan) error {
+	current := runtimeEnvName(rt)
+	bound := ""
+	if pending != nil {
+		bound = pending.Environment
+	}
+	if bound != "" && current != "" && bound != current {
+		return fmt.Errorf("plan was created for environment %q and cannot be applied to %q", bound, current)
+	}
+	target := current
+	if target == "" {
+		target = bound
+	}
+	policy := applyPolicyFrom(ctx)
+	if policy.IsProtected(target) && !policy.AllowProtectedApply {
+		return fmt.Errorf("environment %q is protected; pass --allow-protected-apply to apply changes", target)
+	}
+	return nil
+}
+
 func revalidateProposal(p *PendingPlan) error {
 	if p.ModelName == "" {
 		return fmt.Errorf("plan has no recorded proposal; create it with plan_change")

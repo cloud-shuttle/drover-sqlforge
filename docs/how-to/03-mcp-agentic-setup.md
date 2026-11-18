@@ -48,6 +48,28 @@ sqlforge mcp prod --local=false
 
 Clients send `Authorization: Bearer <key>`. Request bodies are capped at 1 MiB.
 
+### Read-only mode
+
+Analytics agents should not be able to plan or apply. Start the server with `--read-only` and `tools/list` registers only the read tools (`list_models`, `get_model`, `list_metrics`, `query_metric`, `list_snapshots`):
+
+```bash
+sqlforge mcp prod --read-only
+```
+
+`plan_change`, `apply_change`, and `run_snapshot` are not registered in this mode.
+
+### Protected environments
+
+`apply_change` against a protected environment is refused unless you pass `--allow-protected-apply`. `protected_environments` in `sqlforge.yml` defaults to `prod` when the field is omitted. Set it to `[]` to protect nothing, or list the environments that need a human to start the server with the override:
+
+```yaml
+protected_environments:
+  - prod
+  - staging
+```
+
+A plan is bound to the environment it was created in. Applying that plan from a server bound to a different environment fails.
+
 ---
 
 ## Step 2: Configure your MCP client

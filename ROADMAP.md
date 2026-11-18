@@ -48,6 +48,7 @@ SQLForge is outside the five gaps. Its own plan stays in this file and under epi
 - [x] **MCP Server**: Embed an HTTP server to expose SQLForge as a Model Context Protocol service for autonomous agents.
 - [x] **MCP Tool Registry**: Read and mutation tools (`list_models`, `query_metric`, `plan_change`, `apply_change`, etc.); ephemeral plan store for `apply_change` ([ADR 0002](docs/adr/0002-cli-invocation-drover-code-integration.md)).
 - [x] **API key auth**: A single static bearer key (`--api-key`). Hardening is in progress in #52.
+- [x] **Read-only MCP and protected environments**: `sqlforge mcp --read-only` omits write tools. `protected_environments` defaults to `prod`. Plans apply only in the environment they were created for (#55).
 - [ ] **Interactive Execution**: WebSocket endpoints for live plan approval and step-by-step feedback. *Not implemented: the MCP server is plain JSON-RPC over HTTP POST.*
 - [ ] **Rate limiting**: *Not implemented.*
 - [ ] **Request auditing**: a structured audit log per tool call, with caller identity from Drover Gateway. *Not implemented; tracked in #62.*

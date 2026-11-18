@@ -17,6 +17,9 @@ type PendingPlan struct {
 	// from, so apply_change can re-validate it before executing.
 	ModelName   string
 	ProposedSQL string
+	// Environment is the environment the plan was created for. apply_change
+	// refuses the plan when the session environment is different.
+	Environment string
 }
 
 // PlanStore holds ephemeral execution plans keyed by plan_id.
@@ -47,8 +50,21 @@ func (s *PlanStore) PutProposal(p *plan.ExecutionPlan, modelName, proposedSQL st
 	if err != nil {
 		return "", err
 	}
-	s.plans[id] = &PendingPlan{Plan: p, CreatedAt: time.Now(), ModelName: modelName, ProposedSQL: proposedSQL}
+	s.plans[id] = &PendingPlan{
+		Plan:        p,
+		CreatedAt:   time.Now(),
+		ModelName:   modelName,
+		ProposedSQL: proposedSQL,
+		Environment: planEnvironment(p),
+	}
 	return id, nil
+}
+
+func planEnvironment(p *plan.ExecutionPlan) string {
+	if p == nil || p.Environment == nil {
+		return ""
+	}
+	return p.Environment.Name
 }
 
 // GetPending returns the stored plan and its proposal metadata.

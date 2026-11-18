@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cloud-shuttle/drover-sqlforge/internal/config"
 	"github.com/cloud-shuttle/drover-sqlforge/internal/mcp"
 	"github.com/spf13/cobra"
 )
@@ -16,9 +17,11 @@ import (
 const mcpAPIKeyEnv = "SQLFORGE_MCP_API_KEY"
 
 var (
-	mcpPort   string
-	mcpLocal  bool
-	mcpAPIKey string
+	mcpPort                string
+	mcpLocal               bool
+	mcpAPIKey              string
+	mcpReadOnly            bool
+	mcpAllowProtectedApply bool
 )
 
 // resolveMCPAPIKey prefers the --api-key flag when set, else the environment.
@@ -62,7 +65,18 @@ var mcpCmd = &cobra.Command{
 		}
 		defer rt.Close()
 
+		cfg, err := config.LoadConfig(".")
+		if err != nil {
+			fmt.Printf("Failed to load config: %v\n", err)
+			os.Exit(1)
+		}
+
 		server := mcp.NewServer(apiKey, rt)
+		server.Configure(mcp.ServerConfig{
+			ReadOnly:            mcpReadOnly,
+			AllowProtectedApply: mcpAllowProtectedApply,
+			Protected:           cfg.ProtectedSet(),
+		})
 
 		mux := http.NewServeMux()
 		mux.Handle("/mcp", server)
@@ -74,6 +88,13 @@ var mcpCmd = &cobra.Command{
 			fmt.Printf("🔒 Authentication: Enabled (API Key required)\n")
 		} else {
 			fmt.Printf("⚠️  Authentication: Disabled (loopback only)\n")
+		}
+		if mcpReadOnly {
+			fmt.Printf("Mode: read-only (plan_change, apply_change, and run_snapshot are not registered)\n")
+		} else if mcpAllowProtectedApply {
+			fmt.Printf("Mode: apply_change allowed against protected environments\n")
+		} else {
+			fmt.Printf("Mode: apply_change refused for protected environments (default: prod; override with --allow-protected-apply)\n")
 		}
 
 		srv := &http.Server{
@@ -95,6 +116,8 @@ func init() {
 	mcpCmd.Flags().StringVar(&mcpPort, "port", "8080", "Port to bind the MCP server to")
 	mcpCmd.Flags().BoolVar(&mcpLocal, "local", true, "Bind to 127.0.0.1 instead of 0.0.0.0 (non-local requires an API key)")
 	mcpCmd.Flags().StringVar(&mcpAPIKey, "api-key", "", "API key required for access (prefer the "+mcpAPIKeyEnv+" environment variable)")
+	mcpCmd.Flags().BoolVar(&mcpReadOnly, "read-only", false, "Register only read tools (omit plan_change, apply_change, and run_snapshot)")
+	mcpCmd.Flags().BoolVar(&mcpAllowProtectedApply, "allow-protected-apply", false, "Allow apply_change against protected_environments (default protected: prod)")
 
 	rootCmd.AddCommand(mcpCmd)
 }

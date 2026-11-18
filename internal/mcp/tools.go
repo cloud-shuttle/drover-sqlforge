@@ -47,6 +47,16 @@ func (r *Registry) Register(tool Tool) {
 	r.tools[tool.Name] = tool
 }
 
+// Unregister removes tools by name. Missing names are ignored.
+func (r *Registry) Unregister(names ...string) {
+	for _, name := range names {
+		delete(r.tools, name)
+	}
+}
+
+// writeToolNames are the MCP tools that mutate the project or the warehouse.
+var writeToolNames = []string{"plan_change", "apply_change", "run_snapshot"}
+
 func (r *Registry) Get(name string) (Tool, bool) {
 	tool, ok := r.tools[name]
 	return tool, ok
