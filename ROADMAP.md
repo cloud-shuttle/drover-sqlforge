@@ -2,6 +2,23 @@
 
 > **Live roadmap:** planned and in-progress work is tracked in GitHub issues under [epic #65](https://github.com/cloud-shuttle/drover-sqlforge/issues/65). This file records what has shipped. Items are only ticked when the code exists on `main`. The 2026-11 audit (#60) corrected the earlier entries that claimed features which were never built.
 
+## The Drover gap program
+
+In November 2026 Drover was compared with Vercel eve 1.0. Drover leads on isolation, the model gateway and governance, and trails on the layer people touch. The program closes five gaps across the repos: durable multi-turn sessions (drover-kelpies), a Slack-first channels layer (drover-cloud), unified OpenTelemetry tracing with a run viewer (drover-libs, Cloud console), a TypeScript client SDK (drover-cloud), and an extension bundle format (drover-muster, drover-registry). Four capabilities are deferred to Later: shared multi-person sessions, ambient channel listening, agents editing their own code, and session prewarm and migration.
+
+Program tracking issue: in [cloud-shuttle/drover-cloud](https://github.com/cloud-shuttle/drover-cloud/issues?q=is%3Aissue+label%3Aroadmap+Tracking) (private). Sessions run on DBOS, not Temporal (ADR 0005 in drover-kelpies). Dates and day counts are estimates.
+
+| Milestone | Due (estimate) |
+|---|---|
+| M0 Truth-up | 27 Nov 2026 |
+| M1 Trace spine | 18 Dec 2026 |
+| M2 Durable sessions | 5 Feb 2027 |
+| M3 Channels and SDK | 5 Mar 2027 |
+| M4 Extensions | 2 Apr 2027 |
+| Later | after M4 |
+
+SQLForge is outside the five gaps. Its own plan stays in this file and under epic #65; the only program item here is M0 hygiene (status badge and dead links, done in this PR).
+
 ## ✅ Phase 1: Foundation & MVP Engine (Complete)
 - [x] **Polyglot WASM Parser Integration**: Cross-platform, sub-millisecond AST generation for model extraction.
 - [x] **Model Loader & DAG Builder**: Structural reference resolution and chronological dependency tracking.
