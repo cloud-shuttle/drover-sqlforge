@@ -348,8 +348,11 @@ var aiCmd = &cobra.Command{
 			return
 		}
 
-		// 3. Call AI
-		client := ai.NewClient(cfg.AI.Endpoint, cfg.AI.Model)
+		client, err := ai.ClientFromConfig(cfg.AI, os.Getenv, os.Environ())
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
 
 		fmt.Printf("Sending request to %s (Model: %s)...\n", cfg.AI.Endpoint, cfg.AI.Model)
 		explanation, err := client.Explain(targetModel.SQL)

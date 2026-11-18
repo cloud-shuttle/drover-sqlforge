@@ -10,6 +10,22 @@ type Config struct {
 	ProtectedEnvironments []string      `yaml:"protected_environments"`
 	Virtual               VirtualConfig `yaml:"virtual"`
 	AI                    AIConfig      `yaml:"ai"`
+	MCP                   MCPConfig     `yaml:"mcp"`
+}
+
+// MCPConfig is the optional governance block. The AI virtual key is not a
+// field here or on AIConfig: it is read only from SQLFORGE_AI_VIRTUAL_KEY.
+type MCPConfig struct {
+	Auth  MCPAuthConfig `yaml:"auth"`
+	Hooks []string      `yaml:"hooks"`
+}
+
+type MCPAuthConfig struct {
+	Mode        string `yaml:"mode"`
+	Issuer      string `yaml:"issuer"`
+	Audience    string `yaml:"audience"`
+	TokenHeader string `yaml:"token_header"`
+	RequiredOrg string `yaml:"required_org"`
 }
 
 // ProtectedSet is the set of environment names that refuse MCP apply_change.

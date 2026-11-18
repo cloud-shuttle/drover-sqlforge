@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -38,5 +39,23 @@ func TestProtectedSet(t *testing.T) {
 	}
 	if _, ok := set["staging"]; !ok {
 		t.Fatal("missing staging")
+	}
+}
+
+func TestAIConfigIgnoresVirtualKey(t *testing.T) {
+	var cfg Config
+	raw := "ai:\n  provider: gateway\n  endpoint: https://gateway.example/v1\n  virtual_key: super-secret\n"
+	if err := yaml.Unmarshal([]byte(raw), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AI.Provider != "gateway" {
+		t.Fatalf("provider = %q", cfg.AI.Provider)
+	}
+	encoded, err := yaml.Marshal(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "super-secret") || strings.Contains(string(encoded), "virtual_key") {
+		t.Fatalf("virtual key was stored in config: %s", encoded)
 	}
 }

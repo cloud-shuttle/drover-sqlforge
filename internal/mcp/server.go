@@ -31,6 +31,13 @@ type Server struct {
 	// Protected is the set of environment names that refuse apply_change.
 	// Nil means the default (prod). An empty non-nil map protects nothing.
 	Protected map[string]struct{}
+	// AuthMode is api_key (default) or oidc. OIDC never falls back to the API key.
+	AuthMode string
+	// TokenHeader is the header Gateway uses to forward an OIDC token.
+	TokenHeader string
+	Verifier    TokenVerifier
+	Hooks       *HookChain
+	Audit       *AuditLog
 }
 
 // ServerConfig is the optional MCP policy applied after NewServer.
@@ -50,6 +57,8 @@ func NewServer(apiKey string, rt *project.Runtime) *Server {
 		APIKey:   apiKey,
 		Runtime:  rt,
 		Plans:    plans,
+		Hooks:    &HookChain{hooks: []ToolHook{redactHook{}}},
+		Audit:    defaultAudit(),
 	}
 }
 
@@ -71,21 +80,26 @@ func (s *Server) UseReadOnly() {
 	}
 }
 
-// ServeHTTP implements the JSON-RPC 2.0 handler for the MCP endpoint
+// ServeHTTP implements the JSON-RPC 2.0 handler for the MCP endpoint.
+// Order is auth, pre-tool hook, tool, post-tool hook, then the audit line.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Auth check if an API key is configured. ValidateBind refuses to start a
-	// non-loopback server without one.
-	if s.APIKey != "" && !bearerMatches(r.Header.Get("Authorization"), s.APIKey) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	actor, ok := s.authorize(w, r)
+	if !ok {
 		return
 	}
-
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	req, ok := readJSONRPC(w, r, s.MaxBodyBytes)
+	if !ok {
+		return
+	}
+	s.dispatch(w, r, req, actor)
+}
 
-	limit := s.MaxBodyBytes
+func readJSONRPC(w http.ResponseWriter, r *http.Request, maxBody int64) (Request, bool) {
+	limit := maxBody
 	if limit <= 0 {
 		limit = DefaultMaxBodyBytes
 	}
@@ -96,47 +110,21 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
 			http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
-			return
+			return Request{}, false
 		}
 		sendError(w, nil, ParseError, "Parse error")
-		return
+		return Request{}, false
 	}
-
 	var req Request
 	if err := json.Unmarshal(body, &req); err != nil {
 		sendError(w, nil, ParseError, "Parse error")
-		return
+		return Request{}, false
 	}
-
 	if req.JSONRPC != "2.0" {
 		sendError(w, req.ID, InvalidRequest, "Invalid JSON-RPC version")
-		return
+		return Request{}, false
 	}
-
-	// Dispatch to the correct tool
-	tool, ok := s.Registry.Get(req.Method)
-	if !ok {
-		// Special case: exposing tools list natively for agents
-		if req.Method == "tools/list" {
-			sendSuccess(w, req.ID, s.Registry.ListTools())
-			return
-		}
-
-		sendError(w, req.ID, MethodNotFound, "Method not found")
-		return
-	}
-
-	ctx := withApplyPolicy(r.Context(), ApplyPolicy{
-		AllowProtectedApply: s.AllowProtectedApply,
-		Protected:           s.Protected,
-	})
-	result, err := tool.Handler(ctx, req.Params)
-	if err != nil {
-		sendError(w, req.ID, InternalError, err.Error())
-		return
-	}
-
-	sendSuccess(w, req.ID, result)
+	return req, true
 }
 
 // bearerMatches compares an Authorization header against the expected key in
@@ -153,10 +141,15 @@ func bearerMatches(header, key string) bool {
 // (including apply_change, which writes to the warehouse) on a non-loopback
 // interface without authentication.
 func ValidateBind(host, apiKey string) error {
-	if apiKey != "" || isLoopback(host) {
+	return ValidateBindMode(host, apiKey, false)
+}
+
+// ValidateBindMode allows a non-loopback bind when an API key or OIDC mode is set.
+func ValidateBindMode(host, apiKey string, oidc bool) error {
+	if apiKey != "" || oidc || isLoopback(host) {
 		return nil
 	}
-	return fmt.Errorf("refusing to bind MCP server to %q without an API key: set SQLFORGE_MCP_API_KEY (or --api-key), or bind to 127.0.0.1", host)
+	return fmt.Errorf("refusing to bind MCP server to %q without an API key or oidc auth: set SQLFORGE_MCP_API_KEY (or --api-key), configure mcp.auth.mode oidc, or bind to 127.0.0.1", host)
 }
 
 func isLoopback(host string) bool {
@@ -177,5 +170,6 @@ func sendError(w http.ResponseWriter, id json.RawMessage, code int, message stri
 	resp := NewErrorResponse(id, code, message, nil)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
-	log.Printf("MCP Error: %s (Code: %d)", message, code)
+	// The message can echo SQL. The audit log records the class; this line records the code only.
+	log.Printf("MCP error code %d", code)
 }
