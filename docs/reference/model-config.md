@@ -1,134 +1,140 @@
 ---
-title: 'Reference: SQL Model Configuration Comments'
+title: "Reference: model configuration comments"
+description: Comment keys SQLForge reads from model and snapshot SQL files.
 product: drover-sqlforge
 audience: platform-operator
 doc_type: reference
 topics:
-- data-warehousing
+  - data-warehousing
 surface: repo-docs
 ---
 
-# Reference: SQL Model Configuration Comments
+# Reference: model configuration comments
 
-In SQLForge, model parameters, schemas, and data quality tests are declared directly inside the SQL files as configuration comments. This keeps the configuration colocated with the data logic and eliminates the need for separate YAML specification files for every model.
-
-This document systematically lists and explains all supported model-level configuration comment keys.
-
----
-
-## Declaration Syntax
-
-All configuration comments must be declared with a double-dash prefix (`--`), followed by an `@` character, the parameter key, a colon (`:`), and the value.
+Model and snapshot settings live in the SQL file as comments. The parser keeps the SQL, including these lines, and copies each comment into a string map.
 
 ```sql
--- @key_name: value_content
+-- @key: value
 ```
 
-Any trailing comments using double-dashes (`--`) are ignored. Whitespace around keys and values is automatically trimmed.
+The line must start, after trimming, with `-- @`. The key and the value are split on the first `:`. Surrounding space is trimmed. A `--` later in the value is cut off, and the value is trimmed again. A model file name must be a bare identifier: letters, digits, and underscores, not starting with a digit, at most 63 bytes. The same rule applies to schema, table, database, and column names that are interpolated into SQL.
 
-### Complete Example (`models/marts/fct_orders.sql`)
-```sql
--- @materialized: table
--- @schema: marts
--- @test_not_null: order_id, customer_id
--- @test_unique: order_id
--- @test_relationship: customer_id to stg_customers.customer_id
+The warehouse schema for an environment is `sqlforge__` plus the environment name. A schema fragment is appended with an underscore.
 
-SELECT 
-    order_id,
-    customer_id,
-    amount,
-    created_at
-FROM stg_orders;
-```
+A file under `models/` with no `@schema` takes its fragment from the directory path relative to `models/`, with path separators replaced by underscores. `models/marts/marketing/fct.sql` in environment `prod` is built as `sqlforge__prod_marts_marketing.fct`. A file directly in `models/` has no fragment, so the same environment builds `sqlforge__prod.fct`.
 
----
+Models loaded from an installed package set the fragment to the package name. A fragment that is already set is prefixed with `<package>_`.
 
-## Key Reference
+## Materialisation
 
 ### `@materialized`
-* **Type:** `string`
-* **Required:** No
-* **Default:** `view`
-* **Description:** Defines the physical materialization type in your data warehouse.
-* **Supported Values:**
-  * `view` (Default): Compiles the model into a standard database view. Recommended for low-compute logical joins.
-  * `table`: Compiles the model into a physical table. Replaced or rebuilt on every apply run where a change or upstream change is detected.
-  * `incremental`: Creates a physical table on the initial run, and then merges or appends only new or updated records on subsequent runs.
-  * `materialized_view`: Compiles the model into a database-native materialized view.
-  * `kafka` / `nats` / `streaming`: Stream-processing engines. Generates streaming pipeline resources mapped through the warehouse runner.
 
----
+Default `view`.
+
+| Value | What apply builds |
+|---|---|
+| `view`, or any unrecognised value | A view |
+| `table` | A table, rebuilt on apply |
+| `incremental` | A table on the first apply, then an incremental load |
+| `materialized_view` | A materialized view |
+| `kafka`, `nats`, `streaming` | A streaming table. The runner receives the value as `_materialization_type` |
 
 ### `@schema`
-* **Type:** `string`
-* **Required:** No
-* **Default:** Directory name (relative to the `models/` root)
-* **Description:** The target database schema where the compiled relation will be materialized.
-* **Fallback Behavior:** If `@schema` is omitted:
-  * A model at `models/staging/stg_users.sql` defaults to the `staging` schema.
-  * A model at `models/marts/marketing/fct_campaigns.sql` defaults to the `marts_marketing` schema (path separators are replaced by underscores).
-  * A model at `models/users.sql` defaults to your default environment schema.
 
----
+Schema fragment. Appended to the environment schema. See the path default above.
 
 ### `@database`
-* **Type:** `string`
-* **Required:** No
-* **Description:** Overrides the target database name where this model will be built. Helpful for cross-database data segregation.
 
----
+Optional database name. On apply, the object name is `database.schema.table`.
 
-## Data Quality Test Keys
+### `@alias`
 
-These keys declare data assertions that run automatically immediately after DDL execution during `sqlforge apply` or standalone during `sqlforge test`.
+Optional table name. When omitted, the table name is the model name (the file name without `.sql`).
+
+### `@dialect`
+
+Source dialect of the model's SQL. When it differs from the runner name and a parser is configured, apply transpiles the SQL toward the runner dialect. Empty means `ansi`.
+
+## Incremental models
+
+Used when `@materialized` is `incremental`.
+
+### `@unique_key`
+
+One column name. The load SQL interpolates it as a single identifier. With no `@incremental_strategy`, a unique key selects `merge`. Without a unique key the strategy is `append`.
+
+### `@incremental_strategy`
+
+| Value | Load |
+|---|---|
+| empty or `auto` | `merge` when `unique_key` is set, otherwise `append` |
+| `append` | `INSERT INTO ... SELECT` |
+| `merge` or `upsert` | Merge. Postgres and DuckDB delete matching keys, then insert, in one transaction. Snowflake, Databricks, and VeloDB use `MERGE`. Doris uses `ON DUPLICATE KEY UPDATE`. ClickHouse inserts. |
+| `delete+insert` or `delete_insert` | Delete matching keys, then insert |
+| `replacing_merge_tree` | ClickHouse: the first build is `ReplacingMergeTree` ordered by `unique_key`, or `tuple()` when the key is empty. Later applies insert. The engine deduplicates. |
+
+### `@updated_at`
+
+Version column for a ClickHouse `replacing_merge_tree`. Default column name `updated_at` when the strategy is set and this key is empty.
+
+## Data quality
+
+These run after the model is built, during `sqlforge apply` and `sqlforge test`. Each assertion is a count. A count above zero fails the check.
 
 ### `@test_not_null`
-* **Type:** `comma-separated list`
-* **Description:** Asserts that specified column(s) never contain null values.
-* **Example:**
-  ```sql
-  -- @test_not_null: user_id, email, created_at
-  ```
 
----
+Comma-separated columns that must not be null.
+
+```sql
+-- @test_not_null: user_id, email
+```
 
 ### `@test_unique`
-* **Type:** `comma-separated list`
-* **Description:** Asserts that specified column(s) contain strictly unique values.
-* **Example:**
-  ```sql
-  -- @test_unique: user_id, transaction_hash
-  ```
 
----
+Comma-separated columns that must be unique.
 
-### `@test_accepted_values_<column_name>`
-* **Type:** `comma-separated list`
-* **Description:** Dynamically asserts that the values of the column specified in the suffix (e.g. `_status`) fall strictly within the provided list of allowed values.
-* **Examples:**
-  ```sql
-  -- Asserts that the "status" column only contains 'active', 'pending', or 'archived'
-  -- @test_accepted_values_status: active, pending, archived
+```sql
+-- @test_unique: order_id
+```
 
-  -- Asserts that the "tier" column only contains 'free', 'pro', or 'enterprise'
-  -- @test_accepted_values_tier: free, pro, enterprise
-  ```
+### `@test_accepted_values_<column>`
 
----
+Allowed values for that column. The suffix is the column name.
+
+```sql
+-- @test_accepted_values_status: active, pending, archived
+```
 
 ### `@test_relationship`
-* **Type:** `string`
-* **Formats:** 
-  * `<local_column> to <parent_model>.<parent_column>`
-  * `<local_column>-><parent_model>.<parent_column>`
-* **Description:** Validates referential integrity (foreign key validation) between tables. Ensures that every non-null value in the local column has a matching value in the parent model's primary key column.
-* **Behind the Scenes:** During environment execution, the parent model name is resolved to its fully qualified name inside the active schema environment.
-* **Examples:**
-  ```sql
-  -- Standard 'to' syntax
-  -- @test_relationship: customer_id to stg_customers.customer_id
 
-  -- Clean arrow '->' syntax
-  -- @test_relationship: product_id->stg_products.product_id
-  ```
+`<local_column> to <parent_model>.<parent_column>`, or the same shape with `->` instead of ` to `.
+
+```sql
+-- @test_relationship: customer_id to stg_customers.customer_id
+```
+
+The parent model is resolved inside the active environment. Nulls in the local column are not failures.
+
+Singular tests are not model comments. A `.sql` file under `tests/` fails when it returns any row.
+
+## Snapshots
+
+Files under `snapshots/` use the same comment syntax. `sqlforge snapshot` and the MCP `run_snapshot` tool read these keys.
+
+### `@strategy`
+
+`timestamp` (default) or `check`. Any other value is an error.
+
+### `@unique_key`
+
+Required, unless `@grain` is set. `@grain` is the fallback for the same field.
+
+### `@updated_at`
+
+Required when the strategy is `timestamp`.
+
+### `@check_cols`
+
+Comma-separated columns. Required and non-empty when the strategy is `check`.
+
+A snapshot with no saved state in the environment is built as a new table, even if a table of that name already exists. A later run with saved state appends or updates versions. ClickHouse timestamp and check runs insert new versions. Other dialects close the current row and insert the new one.
