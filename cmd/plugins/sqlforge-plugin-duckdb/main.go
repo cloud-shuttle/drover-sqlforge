@@ -23,11 +23,8 @@ func (r *DuckDBRunner) Exec(ctx context.Context, query string) error {
 		return fmt.Errorf("duckdb connection not initialized")
 	}
 	// Incremental merge is two statements (delete, then insert). The driver
-	// runs one command per ExecContext.
-	return virtual.ExecStatements(ctx, query, func(ctx context.Context, stmt string) error {
-		_, err := r.db.ExecContext(ctx, stmt)
-		return err
-	})
+	// runs one command per ExecContext, inside one transaction.
+	return virtual.ExecSQL(ctx, r.db, query)
 }
 
 func (r *DuckDBRunner) CreateSchemaDDL(schema string) string {

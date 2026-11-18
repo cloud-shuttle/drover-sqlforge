@@ -2,6 +2,7 @@ package virtual
 
 import (
 	"context"
+	"database/sql"
 	"strings"
 )
 
@@ -37,6 +38,24 @@ func ExecStatements(ctx context.Context, query string, exec func(context.Context
 		}
 	}
 	return nil
+}
+
+// ExecSQL runs query as one transaction, one top-level statement at a time.
+// A failure rolls the transaction back, so a delete-then-insert merge cannot
+// leave the table deleted when the insert fails.
+func ExecSQL(ctx context.Context, db *sql.DB, query string) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if err := ExecStatements(ctx, query, func(ctx context.Context, stmt string) error {
+		_, err := tx.ExecContext(ctx, stmt)
+		return err
+	}); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }
 
 func appendStatement(parts *[]string, stmt string) {

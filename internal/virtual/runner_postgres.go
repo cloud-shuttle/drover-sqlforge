@@ -32,19 +32,16 @@ func NewPostgresRunner(dsn string) (*PostgresRunner, error) {
 	return &PostgresRunner{db: db, dsn: dsn, stub: false}, nil
 }
 
-// Exec runs each top-level statement separately. lib/pq rejects multiple
-// commands in one ExecContext, and generated DDL is often more than one
-// statement (DROP then CREATE, or a delete+insert merge). Semicolons inside
-// quotes and comments are not splits. Untrusted multi-statement SQL must
-// still be rejected before it reaches a runner.
+// Exec runs each top-level statement in one transaction. lib/pq rejects
+// multiple commands in one ExecContext, and generated DDL is often more than
+// one statement (DROP then CREATE, or a delete+insert merge). Semicolons
+// inside quotes and comments are not splits. Untrusted multi-statement SQL
+// must still be rejected before it reaches a runner.
 func (r *PostgresRunner) Exec(ctx context.Context, query string) error {
 	if r.stub {
 		return nil
 	}
-	return ExecStatements(ctx, query, func(ctx context.Context, stmt string) error {
-		_, err := r.db.ExecContext(ctx, stmt)
-		return err
-	})
+	return ExecSQL(ctx, r.db, query)
 }
 
 // Close releases the database pool. A stub runner has nothing to close.
