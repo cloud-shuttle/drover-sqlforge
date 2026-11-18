@@ -97,3 +97,5 @@ Additional v0.2.0 scope:
 - [ ] **Native GitOps Webhooks**: Expand the `sqlforge mcp` HTTP server to securely listen to GitHub/GitLab webhooks, enabling automated DAG orchestration, zero-copy preview environments, and PR commenting directly from the SQLForge engine.
 - [ ] **`sqlforge plugin install`**: Package manager command to download pre-compiled warehouse plugin binaries for the current platform.
 - [ ] **BigQuery Plugin**: `sqlforge-plugin-bigquery` to complete the major cloud warehouse set.
+
+Hosted multi-tenant SQLForge is design-only in [ADR 0008](docs/adr/0008-hosted-tenancy.md) (#63); v1 has no hosted endpoint.
