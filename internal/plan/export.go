@@ -218,4 +218,3 @@ func GenerateCatalogExport(
 
 	return export
 }
-

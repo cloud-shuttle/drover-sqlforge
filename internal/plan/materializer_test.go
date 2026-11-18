@@ -2,6 +2,7 @@ package plan
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -115,6 +116,38 @@ func TestMaterializer_NATSStreaming(t *testing.T) {
 
 // TestMaterializer_DefaultsToView verifies that a model with no "materialized"
 // config key is treated as a view — the documented default.
+func TestMaterializer_IncrementalInitialAndMerge(t *testing.T) {
+	no := false
+	yes := true
+
+	initial := &MockRunner{TableExistsResult: &no}
+	a := simpleAsset("orders", "incremental")
+	a.Config["unique_key"] = "id"
+	mat := makeMaterializer(t, singleModelPlan(a), initial)
+	if err := mat.Apply(context.Background(), a); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(initial.LastDDL, "CREATE OR REPLACE TABLE") {
+		t.Fatalf("initial DDL: %s", initial.LastDDL)
+	}
+
+	merge := &MockRunner{TableExistsResult: &yes}
+	mat = makeMaterializer(t, singleModelPlan(a), merge)
+	if err := mat.Apply(context.Background(), a); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(merge.LastDDL, "DELETE FROM") || !strings.Contains(merge.LastDDL, "INSERT INTO") {
+		t.Fatalf("merge DDL: %s", merge.LastDDL)
+	}
+
+	broken := &MockRunner{TableExistsErr: errors.New("catalog down")}
+	mat = makeMaterializer(t, singleModelPlan(a), broken)
+	err := mat.Apply(context.Background(), a)
+	if err == nil || !strings.Contains(err.Error(), "failed to check table existence") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestMaterializer_DefaultsToView(t *testing.T) {
 	runner := &MockRunner{}
 	a := &model.Asset{
@@ -279,7 +312,7 @@ func TestMaterializer_QualityFailure(t *testing.T) {
 		Name: "orders",
 		SQL:  "SELECT 1",
 		Config: map[string]string{
-			"materialized": "view",
+			"materialized":  "view",
 			"test_not_null": "customer_id",
 		},
 	}

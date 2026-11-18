@@ -15,15 +15,19 @@ import (
 var errMockExec = errors.New("mock exec error")
 
 type MockRunner struct {
-	LastDDL          string
-	LastSQL          string
-	ExecErr          error
-	QueryCountResult int
-	QueryCountErr    error
-	QueryCountCalls  []string
+	LastDDL           string
+	LastSQL           string
+	ExecErr           error
+	ExecLog           []string
+	QueryCountResult  int
+	QueryCountErr     error
+	QueryCountCalls   []string
+	TableExistsResult *bool
+	TableExistsErr    error
 }
 
 func (m *MockRunner) Exec(ctx context.Context, sql string) error {
+	m.ExecLog = append(m.ExecLog, sql)
 	if m.ExecErr != nil {
 		return m.ExecErr
 	}
@@ -45,6 +49,12 @@ func (m *MockRunner) CreateStreamingTableDDL(schema, table string, config map[st
 	return "stream " + table + " " + config["_materialization_type"]
 }
 func (m *MockRunner) TableExists(ctx context.Context, schema, table string) (bool, error) {
+	if m.TableExistsErr != nil {
+		return false, m.TableExistsErr
+	}
+	if m.TableExistsResult != nil {
+		return *m.TableExistsResult, nil
+	}
 	return m.LastDDL != "", nil // Return true if it was run once in the test
 }
 func (m *MockRunner) CreateIncrementalMergeDDL(schema, table, selectSQL string, config map[string]string) string {
