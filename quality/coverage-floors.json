@@ -10,8 +10,8 @@
     "internal/project": 19.0,
     "internal/semantic": 57.5,
     "internal/snapshot": 29.5,
-    "internal/state": 47.0,
-    "internal/virtual": 25.5
+    "internal/state": 70.0,
+    "internal/virtual": 47.0
   },
   "targets": {
     "internal/plan": 80.0,
