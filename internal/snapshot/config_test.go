@@ -6,8 +6,8 @@ func TestResolveConfigGrainFallback(t *testing.T) {
 	cfg, err := ResolveConfig(&Definition{
 		Name: "users",
 		Config: map[string]string{
-			"grain":       "user_id",
-			"updated_at":  "created_at",
+			"grain":      "user_id",
+			"updated_at": "created_at",
 		},
 	})
 	if err != nil {
