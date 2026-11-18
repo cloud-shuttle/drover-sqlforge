@@ -76,9 +76,9 @@ Before graduating from alpha to beta, we are targeting measurable improvements t
 | Package | Current (v0.1.0-alpha) | Target (v0.2.0-beta) |
 |---------|------------------------|----------------------|
 | `internal/plan` | 66.7% | **≥ 80%** |
-| `internal/state` | 47.5% | **≥ 60%** |
+| `internal/state` | 71.4% | **≥ 60%** |
 | `internal/snapshot` | 90.7% | **≥ 50%** |
-| `internal/virtual` | 26.0% | **≥ 40%** |
+| `internal/virtual` | 48.5% | **≥ 40%** |
 
 CI (the `quality-gate` job) and `make quality-gate` enforce **per-package floors** from [`quality/coverage-floors.json`](quality/coverage-floors.json). The floors start just below today's coverage and are raised toward these targets in the PRs that add the tests. The same job runs a per-function CRAP gate ([`tools/crap`](tools/crap)):
 - Every Go function must score **≤ 30**.
