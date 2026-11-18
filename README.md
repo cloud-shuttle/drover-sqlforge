@@ -1,19 +1,19 @@
-# Drover SQLForge 🚀 (v0.1.0-alpha)
+# Drover SQLForge 🚀 (v0.2.0-beta)
 
 ![Status: active](https://img.shields.io/badge/status-active-2ea44f)
 
-> **Status, checked 18 Nov 2026: ACTIVE.** Go data-transformation engine (a dbt alternative) with an MCP server. Tagged v0.1.0-alpha. Last change 18 Nov 2026. Outside the gap program.
+> **Status, checked 19 Nov 2026: ACTIVE.** Go data-transformation engine (a dbt alternative) with an MCP server. Tagged [v0.2.0-beta](https://github.com/cloud-shuttle/drover-sqlforge/releases/tag/v0.2.0-beta) (`8772ad5`). Last change 19 Nov 2026. Outside the gap program.
 >
 > **Clean-clone check:** `go build ./...` needs a C toolchain with libstdc++ because the DuckDB plugin uses cgo. The e2e tests need `make e2e` first so the `sqlforge` binary exists.
 >
 > **Roadmap:** [ROADMAP.md](ROADMAP.md). Program tracking: Drover gap program (M0 to M4).
 
-> **Repo status (2026-11-18):** active again after the 2026-11-09 rationalization marked it STALE. Every PR runs a consumer-facing smoke test (`make smoke`): a fresh copy of the bundled example goes through plan → apply → test → query → docs on DuckDB. Postgres and DuckDB also run apply integration tests in CI. Config and MCP fields are in [`docs/reference/`](docs/reference/). The roadmap is tracked in [epic #65](https://github.com/cloud-shuttle/drover-sqlforge/issues/65). Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
+> **Repo status (2026-11-19):** active again after the 2026-11-09 rationalization marked it STALE. Every PR runs a consumer-facing smoke test (`make smoke`): a fresh copy of the bundled example goes through plan → apply → test → query → docs on DuckDB. Postgres and DuckDB also run apply integration tests in CI. Config and MCP fields are in [`docs/reference/`](docs/reference/). The beta tag is a source tag: there are no published binaries. The roadmap is tracked in [epic #65](https://github.com/cloud-shuttle/drover-sqlforge/issues/65). Cross-repo map: [drover-sh docs](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md).
 
 [![CI](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml/badge.svg)](https://github.com/cloud-shuttle/drover-sqlforge/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.27+-00ADD8?logo=go)](https://go.dev)
-[![Status](https://img.shields.io/badge/status-alpha-orange)](ROADMAP.md)
+[![Status](https://img.shields.io/badge/status-beta-yellow)](https://github.com/cloud-shuttle/drover-sqlforge/releases/tag/v0.2.0-beta)
 
 > Part of the Drover ecosystem ([cross-repo map](https://github.com/cloud-shuttle/drover-sh/blob/main/docs/reference/cross-repo-map.md)): orchestrating autonomous agentic engineering.
 
@@ -77,7 +77,7 @@ That's it. Eight models built, quality tests run, fingerprints saved.
 | Apache Doris | `sqlforge-plugin-doris` | ⚠️ DDL snapshot tests only |
 | VeloDB (SelectDB) | `sqlforge-plugin-velodb` | ⚠️ DDL snapshot tests only |
 
-The whole project is **alpha**. Postgres and DuckDB execute generated SQL in CI, including an injection regression on `plan_change`. "DDL snapshot tests only" means the generated SQL is checked as strings but has not been executed against that warehouse in CI.
+The whole project is **beta** ([v0.2.0-beta](https://github.com/cloud-shuttle/drover-sqlforge/releases/tag/v0.2.0-beta)). Postgres and DuckDB execute generated SQL in CI, including an injection regression on `plan_change`. "DDL snapshot tests only" means the generated SQL is checked as strings but has not been executed against that warehouse in CI.
 
 ---
 
