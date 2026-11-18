@@ -52,7 +52,12 @@ var mcpCmd = &cobra.Command{
 
 		apiKey := resolveMCPAPIKey(mcpAPIKey, os.Getenv)
 		host := mcpBindHost(mcpLocal)
-		if err := mcp.ValidateBind(host, apiKey); err != nil {
+		cfg, err := config.LoadConfig(".")
+		if err != nil {
+			fmt.Printf("Failed to load config: %v\n", err)
+			os.Exit(1)
+		}
+		if err := mcp.ValidateBindMode(host, apiKey, cfg.MCP.Auth.Mode == "oidc"); err != nil {
 			fmt.Printf("%v\n", err)
 			os.Exit(1)
 		}
@@ -65,18 +70,16 @@ var mcpCmd = &cobra.Command{
 		}
 		defer rt.Close()
 
-		cfg, err := config.LoadConfig(".")
-		if err != nil {
-			fmt.Printf("Failed to load config: %v\n", err)
-			os.Exit(1)
-		}
-
 		server := mcp.NewServer(apiKey, rt)
 		server.Configure(mcp.ServerConfig{
 			ReadOnly:            mcpReadOnly,
 			AllowProtectedApply: mcpAllowProtectedApply,
 			Protected:           cfg.ProtectedSet(),
 		})
+		if err := configureGovernance(server, cfg); err != nil {
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
 
 		mux := http.NewServeMux()
 		mux.Handle("/mcp", server)
@@ -110,6 +113,26 @@ var mcpCmd = &cobra.Command{
 			os.Exit(1)
 		}
 	},
+}
+
+func configureGovernance(server *mcp.Server, cfg *config.Config) error {
+	mode := cfg.MCP.Auth.Mode
+	if mode == "" {
+		mode = "api_key"
+	}
+	g := mcp.Governance{
+		AuthMode:    mode,
+		TokenHeader: cfg.MCP.Auth.TokenHeader,
+		HookNames:   cfg.MCP.Hooks,
+	}
+	if mode == "oidc" {
+		verifier, err := mcp.NewOIDCVerifier(cfg.MCP.Auth.Issuer, cfg.MCP.Auth.Audience, cfg.MCP.Auth.RequiredOrg, nil)
+		if err != nil {
+			return err
+		}
+		g.Verifier = verifier
+	}
+	return server.UseGovernance(g)
 }
 
 func init() {

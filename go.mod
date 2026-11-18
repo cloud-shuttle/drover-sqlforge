@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/databricks/databricks-sql-go v1.19.0
 	github.com/go-sql-driver/mysql v1.10.1
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/hashicorp/go-plugin v1.8.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
@@ -104,7 +105,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect

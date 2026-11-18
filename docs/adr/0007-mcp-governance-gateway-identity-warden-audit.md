@@ -20,7 +20,7 @@ Date: 2026-11-16
 
 ## Status
 
-Proposed (design only; implementation tracked in #62)
+Accepted. Implemented in the MCP server: actor, audit log, OIDC verifier, tool hook, and Gateway virtual key. The Warden adapter is a build-tag stub and does not import drover-warden.
 
 ## Context
 

@@ -32,6 +32,9 @@ const (
 	MethodNotFound = -32601
 	InvalidParams  = -32602
 	InternalError  = -32603
+	// ApprovalRequired is returned when a hook asks for a human decision.
+	// SQLForge never self-approves.
+	ApprovalRequired = -32001
 )
 
 func NewResponse(id json.RawMessage, result interface{}) *Response {

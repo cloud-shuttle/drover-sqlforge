@@ -48,7 +48,7 @@ func TestTools_ListModels(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to marshal result: %v", err)
 	}
-	
+
 	var summaries []map[string]interface{}
 	if err := json.Unmarshal(b, &summaries); err != nil {
 		t.Fatalf("failed to unmarshal JSON: %v", err)
@@ -85,7 +85,7 @@ func TestTools_GetModel(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		
+
 		m := res.(map[string]interface{})
 		if m["name"] != "model_a" {
 			t.Errorf("expected name model_a, got %v", m["name"])

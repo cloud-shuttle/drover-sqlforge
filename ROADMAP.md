@@ -51,7 +51,7 @@ SQLForge is outside the five gaps. Its own plan stays in this file and under epi
 - [x] **Read-only MCP and protected environments**: `sqlforge mcp --read-only` omits write tools. `protected_environments` defaults to `prod`. Plans apply only in the environment they were created for (#55).
 - [ ] **Interactive Execution**: WebSocket endpoints for live plan approval and step-by-step feedback. *Not implemented: the MCP server is plain JSON-RPC over HTTP POST.*
 - [ ] **Rate limiting**: *Not implemented.*
-- [ ] **Request auditing**: a structured audit log per tool call, with caller identity from Drover Gateway. *Not implemented; tracked in #62.*
+- [x] **Request auditing**: a structured audit log per tool call, with caller identity from Drover Gateway (#62). SQL and secrets are not logged. OIDC verification, the tool hook, and Gateway virtual keys ship with it. The Warden adapter stays a build-tag stub.
 
 ## ✅ Phase 5: Lineage, Stability & Developer Onboarding (Complete)
 - [x] **Column lineage CLI**: `sqlforge lineage [model]` with structural SELECT/FROM parsing.

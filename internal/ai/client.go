@@ -9,8 +9,12 @@ import (
 )
 
 type Client struct {
-	Endpoint string
-	Model    string
+	Endpoint   string
+	Model      string
+	Provider   string
+	VirtualKey string
+	Dimensions map[string]string
+	HTTP       *http.Client
 }
 
 func NewClient(endpoint, model string) *Client {
@@ -21,7 +25,13 @@ func NewClient(endpoint, model string) *Client {
 }
 
 func (c *Client) Explain(sqlContext string) (string, error) {
-	// Simple Ollama payload
+	if c.Provider == "gateway" {
+		return c.explainGateway(sqlContext)
+	}
+	return c.explainOllama(sqlContext)
+}
+
+func (c *Client) explainOllama(sqlContext string) (string, error) {
 	payload := map[string]interface{}{
 		"model":  c.Model,
 		"prompt": fmt.Sprintf("Explain the following SQL model:\n\n%s", sqlContext),
