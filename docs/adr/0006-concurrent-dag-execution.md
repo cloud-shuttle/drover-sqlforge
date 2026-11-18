@@ -1,3 +1,13 @@
+---
+title: 6. Concurrent DAG Execution Engine
+product: drover-sqlforge
+audience: platform-operator
+doc_type: adr
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # 6. Concurrent DAG Execution Engine
 
 Date: 2026-05-25

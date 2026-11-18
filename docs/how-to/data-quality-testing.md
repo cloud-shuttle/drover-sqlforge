@@ -1,3 +1,13 @@
+---
+title: Advanced Data Quality Testing in SQLForge 🛡️
+product: drover-sqlforge
+audience: platform-operator
+doc_type: how-to
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # Advanced Data Quality Testing in SQLForge 🛡️
 
 SQLForge provides a robust, native data quality engine to validate that your warehouse relations conform to structural rules and business assumptions. Tests are executed immediately after DDL materialization during `sqlforge apply` (aborting the pipeline on failure) or standalone via `sqlforge test`.

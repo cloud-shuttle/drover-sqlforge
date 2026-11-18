@@ -1,3 +1,13 @@
+---
+title: 'Reference: SQL Model Configuration Comments'
+product: drover-sqlforge
+audience: platform-operator
+doc_type: reference
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # Reference: SQL Model Configuration Comments
 
 In SQLForge, model parameters, schemas, and data quality tests are declared directly inside the SQL files as configuration comments. This keeps the configuration colocated with the data logic and eliminates the need for separate YAML specification files for every model.

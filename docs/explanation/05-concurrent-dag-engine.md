@@ -1,3 +1,13 @@
+---
+title: Understanding the Concurrent DAG Engine
+product: drover-sqlforge
+audience: platform-operator
+doc_type: explanation
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # Understanding the Concurrent DAG Engine
 
 SQLForge executes data models concurrently by analyzing the Directed Acyclic Graph (DAG) of your project. This document explains the internal mechanics of the concurrency model implemented in `internal/plan/apply.go`.

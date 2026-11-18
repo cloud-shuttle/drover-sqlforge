@@ -1,3 +1,13 @@
+---
+title: 'ADR 0005: Pure-SQL Package Management System'
+product: drover-sqlforge
+audience: platform-operator
+doc_type: adr
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # ADR 0005: Pure-SQL Package Management System
 
 ## Status
