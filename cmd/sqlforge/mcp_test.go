@@ -22,3 +22,14 @@ func TestMCPBindHost(t *testing.T) {
 		t.Fatal("unexpected bind hosts")
 	}
 }
+
+func TestMCPReadOnlyAndProtectedFlags(t *testing.T) {
+	readOnly := mcpCmd.Flags().Lookup("read-only")
+	allow := mcpCmd.Flags().Lookup("allow-protected-apply")
+	if readOnly == nil || allow == nil {
+		t.Fatal("mcp flags missing")
+	}
+	if readOnly.DefValue != "false" || allow.DefValue != "false" {
+		t.Fatalf("defaults read-only=%s allow=%s", readOnly.DefValue, allow.DefValue)
+	}
+}

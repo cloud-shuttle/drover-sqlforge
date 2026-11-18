@@ -24,6 +24,20 @@ type Server struct {
 	Plans    *PlanStore
 	// MaxBodyBytes caps the request body; zero means DefaultMaxBodyBytes.
 	MaxBodyBytes int64
+	// ReadOnly is set when write tools have been removed from the registry.
+	ReadOnly bool
+	// AllowProtectedApply permits apply_change against protected environments.
+	AllowProtectedApply bool
+	// Protected is the set of environment names that refuse apply_change.
+	// Nil means the default (prod). An empty non-nil map protects nothing.
+	Protected map[string]struct{}
+}
+
+// ServerConfig is the optional MCP policy applied after NewServer.
+type ServerConfig struct {
+	ReadOnly            bool
+	AllowProtectedApply bool
+	Protected           map[string]struct{}
 }
 
 func NewServer(apiKey string, rt *project.Runtime) *Server {
@@ -36,6 +50,24 @@ func NewServer(apiKey string, rt *project.Runtime) *Server {
 		APIKey:   apiKey,
 		Runtime:  rt,
 		Plans:    plans,
+	}
+}
+
+// Configure applies read-only mode and the protected-environment policy.
+// Read-only removes write tools, so tools/list and dispatch both omit them.
+func (s *Server) Configure(cfg ServerConfig) {
+	s.AllowProtectedApply = cfg.AllowProtectedApply
+	s.Protected = cfg.Protected
+	if cfg.ReadOnly {
+		s.UseReadOnly()
+	}
+}
+
+// UseReadOnly unregisters every tool that writes to the project or warehouse.
+func (s *Server) UseReadOnly() {
+	s.ReadOnly = true
+	if s.Registry != nil {
+		s.Registry.Unregister(writeToolNames...)
 	}
 }
 
@@ -94,7 +126,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := tool.Handler(r.Context(), req.Params)
+	ctx := withApplyPolicy(r.Context(), ApplyPolicy{
+		AllowProtectedApply: s.AllowProtectedApply,
+		Protected:           s.Protected,
+	})
+	result, err := tool.Handler(ctx, req.Params)
 	if err != nil {
 		sendError(w, req.ID, InternalError, err.Error())
 		return
