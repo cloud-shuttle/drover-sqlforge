@@ -1,3 +1,13 @@
+---
+title: 'How-to: Create and Use Environments'
+product: drover-sqlforge
+audience: platform-operator
+doc_type: how-to
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # How-to: Create and Use Environments
 
 **When to use this:** You want to work on model changes without affecting production data, or you want each CI pull request to get its own isolated schema.

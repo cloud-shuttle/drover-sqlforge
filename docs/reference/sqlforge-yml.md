@@ -1,3 +1,13 @@
+---
+title: 'Reference: `sqlforge.yml` Configuration'
+product: drover-sqlforge
+audience: platform-operator
+doc_type: reference
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # Reference: `sqlforge.yml` Configuration
 
 This document provides a comprehensive, systematic reference for all configuration options available in the `sqlforge.yml` project file.

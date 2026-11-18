@@ -1,3 +1,13 @@
+---
+title: 'Explanation: Tokenizer and Transpilation Architecture'
+product: drover-sqlforge
+audience: platform-operator
+doc_type: explanation
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # Explanation: Tokenizer and Transpilation Architecture
 
 SQLForge achieves robust, multi-dialect query compilation and high performance by using a hybrid parser engine. Instead of a single monolithic parser, it splits responsibilities between a **WebAssembly-compiled SQL Parser (Rust AST engine)** and a **Go Stream Tokenizer**. 

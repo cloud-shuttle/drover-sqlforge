@@ -1,3 +1,13 @@
+---
+title: 'Tutorial: Write Your First Model'
+product: drover-sqlforge
+audience: platform-operator
+doc_type: tutorial
+topics:
+- data-warehousing
+surface: repo-docs
+---
+
 # Tutorial: Write Your First Model
 
 **Time:** 15–20 minutes  
