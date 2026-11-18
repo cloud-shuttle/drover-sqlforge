@@ -42,6 +42,9 @@ func BuildIncrementalMergeDDL(dialect, schema, table, selectSQL string, config m
 	strategy := ResolveIncrementalStrategy(config)
 	qualified := fmt.Sprintf("%s.%s", schema, table)
 	uniqueKey := strings.TrimSpace(config["unique_key"])
+	// Model files keep a trailing terminator. Nested inside a subquery it
+	// would end the statement early.
+	selectSQL = trimStatementTerminator(selectSQL)
 
 	switch strategy {
 	case StrategyAppend:
@@ -55,10 +58,7 @@ func BuildIncrementalMergeDDL(dialect, schema, table, selectSQL string, config m
 		if uniqueKey == "" {
 			return "", fmt.Errorf("incremental strategy delete+insert requires unique_key")
 		}
-		return fmt.Sprintf(
-			"DELETE FROM %s WHERE %s IN (SELECT %s FROM (%s));\nINSERT INTO %s\nSELECT * FROM (%s);",
-			qualified, uniqueKey, uniqueKey, selectSQL, qualified, selectSQL,
-		), nil
+		return deleteInsertSQL(qualified, selectSQL, uniqueKey), nil
 	case StrategyReplacingMergeTree:
 		// Incremental step for ClickHouse ReplacingMergeTree is append; dedup is engine-side.
 		return fmt.Sprintf("INSERT INTO %s\nSELECT * FROM (%s);", qualified, selectSQL), nil
@@ -82,12 +82,26 @@ func buildMergeDDL(dialect, qualified, selectSQL, uniqueKey string) (string, err
 	case "clickhouse":
 		return fmt.Sprintf("INSERT INTO %s\nSELECT * FROM (%s);", qualified, selectSQL), nil
 	default:
-		// duckdb, postgres, and other ANSI engines
-		return fmt.Sprintf(
-			"INSERT INTO %s\nSELECT * FROM (%s)\nON CONFLICT (%s) DO UPDATE SET *;",
-			qualified, selectSQL, uniqueKey,
-		), nil
+		// Postgres and DuckDB reject "DO UPDATE SET *". Delete the matching
+		// keys and insert the new rows: an upsert that does not need a column
+		// list or a pre-existing unique index.
+		return deleteInsertSQL(qualified, selectSQL, uniqueKey), nil
 	}
+}
+
+func deleteInsertSQL(qualified, selectSQL, uniqueKey string) string {
+	return fmt.Sprintf(
+		"DELETE FROM %s WHERE %s IN (SELECT %s FROM (%s));\nINSERT INTO %s\nSELECT * FROM (%s);",
+		qualified, uniqueKey, uniqueKey, selectSQL, qualified, selectSQL,
+	)
+}
+
+func trimStatementTerminator(sql string) string {
+	s := strings.TrimSpace(sql)
+	for strings.HasSuffix(s, ";") {
+		s = strings.TrimSpace(strings.TrimSuffix(s, ";"))
+	}
+	return s
 }
 
 // BuildIncrementalInitialDDL creates the target table on first incremental apply.

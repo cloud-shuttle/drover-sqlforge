@@ -1,0 +1,7 @@
+name: warehouse_integration
+version: 1.0.0
+default_environment: prod
+
+virtual:
+  dialect: postgres
+  connection: postgres://sqlforge:sqlforge@localhost:5432/sqlforge?sslmode=disable

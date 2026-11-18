@@ -19,6 +19,7 @@ require (
 	github.com/snowflakedb/gosnowflake/v2 v2.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.45.0
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.45.0
 	github.com/tetratelabs/wazero v1.12.0
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12

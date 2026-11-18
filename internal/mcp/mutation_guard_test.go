@@ -12,7 +12,22 @@ import (
 	"github.com/cloud-shuttle/drover-sqlforge/internal/plan"
 	"github.com/cloud-shuttle/drover-sqlforge/internal/project"
 	"github.com/cloud-shuttle/drover-sqlforge/internal/sqlguard"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/state"
+	"github.com/cloud-shuttle/drover-sqlforge/internal/virtual"
 )
+
+// countingRunner records Exec calls. plan_change must not reach the warehouse.
+type countingRunner struct {
+	virtual.Runner
+	calls int
+	sqls  []string
+}
+
+func (c *countingRunner) Exec(ctx context.Context, sql string) error {
+	c.calls++
+	c.sqls = append(c.sqls, sql)
+	return c.Runner.Exec(ctx, sql)
+}
 
 func guardTestRuntime() *project.Runtime {
 	dag := graph.NewDAG()
@@ -43,6 +58,39 @@ func TestPlanChange_RejectsUnsafeSQLBeforeStoringPlan(t *testing.T) {
 		if n := len(store.plans); n != 0 {
 			t.Errorf("plan_change(%q) stored %d plans", sql, n)
 		}
+	}
+}
+
+func TestPlanChange_MultiStatementDoesNotExecute(t *testing.T) {
+	inner, err := virtual.NewRunner("postgres", "stub")
+	if err != nil {
+		t.Fatal(err)
+	}
+	counter := &countingRunner{Runner: inner}
+	stateMgr, err := state.NewManager(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := guardTestRuntime()
+	rt.StateMgr = stateMgr
+	rt.VMgr = virtual.NewManager(counter, stateMgr)
+
+	store := NewPlanStore()
+	reg := NewRegistry()
+	reg.InitializeCoreTools(rt, store)
+	tool, _ := reg.Get("plan_change")
+	sql := "SELECT 1; DROP SCHEMA sqlforge__prod CASCADE"
+	params, _ := json.Marshal(map[string]string{"model_name": "orders", "proposed_sql": sql})
+	_, err = tool.Handler(context.Background(), params)
+	var ge *sqlguard.Error
+	if !errors.As(err, &ge) {
+		t.Fatalf("err = %v, want sqlguard rejection", err)
+	}
+	if len(store.plans) != 0 {
+		t.Fatalf("stored %d plans", len(store.plans))
+	}
+	if counter.calls != 0 {
+		t.Fatalf("executed %d statements: %q", counter.calls, counter.sqls)
 	}
 }
 
